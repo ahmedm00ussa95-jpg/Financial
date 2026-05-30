@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام الإدارة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+<!-- Firebase -->
+<script>
+window._fbAvailable = false;
+window._fbTimeout = setTimeout(() => {
+  if (!window._fbAvailable) {
+    console.warn('Firebase timeout');
+    window.dispatchEvent(new Event('fbOffline'));
+  }
+}, 6000);
+</script>
+<script type="module">
+  try {
+    const { initializeApp }           = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getDatabase, ref, set, push, update, remove, onValue } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+
+    const app = initializeApp({ databaseURL: "https://cashier-5c190-default-rtdb.firebaseio.com" });
+    const db  = getDatabase(app);
+
+    window.$db = db; window.$ref = ref; window.$set = set; window.$push = push;
+    window.$update = update; window.$remove = remove; window.$onValue = onValue;
+    window._fbAvailable = true;
+    clearTimeout(window._fbTimeout);
+    window.dispatchEvent(new Event('fbReady'));
+  } catch(e) {
+    console.warn('Firebase error:', e);
+    clearTimeout(window._fbTimeout);
+    window.dispatchEvent(new Event('fbOffline'));
+  }
+</script>
+
+<style>
+/* =============================================
+   THEME VARIABLES
+   ============================================= */
+[data-theme="dark"] {
+  --bg:#0d1117; --bg2:#161b22; --card:#1c2333; --card2:#21262d;
+  --border:#30363d; --border2:#21262d;
+  --text:#e6edf3; --text2:#8b949e; --text3:#6e7681;
+  --accent:#00d4ff; --accent-bg:rgba(0,212,255,.08);
+  --purple:#a371f7; --purple-bg:rgba(163,113,247,.08);
+  --green:#3fb950;  --green-bg:rgba(63,185,80,.08);
+  --yellow:#d29922; --yellow-bg:rgba(210,153,34,.08);
+  --red:#f85149;    --red-bg:rgba(248,81,73,.08);
+  --shadow:0 8px 32px rgba(0,0,0,.4);
+}
+[data-theme="light"] {
+  --bg:#f0f2f5; --bg2:#ffffff; --card:#ffffff; --card2:#f6f8fa;
+  --border:#d0d7de; --border2:#e8ecef;
+  --text:#1f2328; --text2:#656d76; --text3:#8c959f;
+  --accent:#0969da; --accent-bg:rgba(9,105,218,.06);
+  --purple:#8250df; --purple-bg:rgba(130,80,223,.06);
+  --green:#1a7f37;  --green-bg:rgba(26,127,55,.06);
+  --yellow:#9a6700; --yellow-bg:rgba(154,103,0,.06);
+  --red:#cf222e;    --red-bg:rgba(207,34,46,.06);
+  --shadow:0 4px 16px rgba(0,0,0,.08);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; }
+body { font-family:'Cairo',sans-serif; background:var(--bg); color:var(--text); transition:background .25s,color .25s; overflow-x:hidden; }
+
+.layout { display:flex; height:100vh; }
+.sidebar {
+  width:240px; min-width:240px; background:var(--bg2);
+  border-left:1px solid var(--border); display:flex; flex-direction:column;
+  position:fixed; right:0; top:0; bottom:0; z-index:200; overflow-y:auto;
+}
+.main { margin-right:240px; flex:1; display:flex; flex-direction:column; min-height:100vh; overflow-y:auto; }
+
+.sb-head { padding:18px 16px; border-bottom:1px solid var(--border); }
+.sb-brand { display:flex; align-items:center; gap:10px; }
+.sb-brand-icon {
+  width:36px; height:36px;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  border-radius:9px; display:flex; align-items:center; justify-content:center;
+  font-size:17px; flex-shrink:0;
+}
+.sb-brand-text h2 { font-size:12.5px; font-weight:700; line-height:1.3; }
+.sb-brand-text p  { font-size:10px; color:var(--accent); }
+.sb-nav { padding:8px 0; flex:1; }
+.sb-section { margin-bottom:2px; }
+.sb-label {
+  font-size:9.5px; font-weight:700; color:var(--text3);
+  padding:8px 16px 3px; text-transform:uppercase; letter-spacing:.8px;
+}
+.sb-item {
+  display:flex; align-items:center; gap:9px; padding:8px 16px;
+  cursor:pointer; font-size:13px; color:var(--text2);
+  border-right:3px solid transparent; transition:all .15s; user-select:none;
+}
+.sb-item:hover  { background:var(--accent-bg); color:var(--text); }
+.sb-item.active { background:var(--accent-bg); color:var(--accent); border-right-color:var(--accent); }
+.sb-item i { width:16px; text-align:center; font-size:13px; }
+.sb-foot {
+  padding:12px 16px; border-top:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.sb-status { font-size:10px; color:var(--green); display:flex; align-items:center; gap:5px; }
+.sb-status::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block; }
+.sb-status.offline { color:var(--red); }
+.sb-status.offline::before { background:var(--red); }
+
+.topbar {
+  background:var(--bg2); border-bottom:1px solid var(--border);
+  padding:12px 24px; display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:100;
+}
+.topbar-title { font-size:16px; font-weight:700; display:flex; align-items:center; gap:9px; color:var(--text); }
+.topbar-title i { color:var(--accent); }
+.topbar-actions { display:flex; align-items:center; gap:10px; }
+.clock { font-size:12px; color:var(--text2); font-weight:600; }
+.theme-btn {
+  width:34px; height:34px; border-radius:8px;
+  border:1px solid var(--border); background:var(--card2);
+  color:var(--text2); cursor:pointer; display:flex; align-items:center;
+  justify-content:center; font-size:14px; transition:all .2s;
+}
+.theme-btn:hover { background:var(--accent-bg); color:var(--accent); }
+.topbar-user { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text2); }
+.topbar-user strong { color:var(--text); }
+.user-role-badge { padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+.role-admin      { background:var(--red-bg); color:var(--red); }
+.role-cashier    { background:var(--green-bg); color:var(--green); }
+.role-accountant { background:var(--purple-bg); color:var(--purple); }
+
+.btn {
+  padding:8px 16px; border-radius:8px; border:none; cursor:pointer;
+  font-family:'Cairo',sans-serif; font-size:12.5px; font-weight:600;
+  display:inline-flex; align-items:center; gap:7px; transition:all .18s; white-space:nowrap;
+}
+.btn-primary  { background:var(--accent);  color:#fff; }
+.btn-primary:hover  { opacity:.88; transform:translateY(-1px); }
+.btn-success  { background:var(--green);   color:#fff; }
+.btn-success:hover  { opacity:.88; transform:translateY(-1px); }
+.btn-warning  { background:var(--yellow);  color:#fff; }
+.btn-warning:hover  { opacity:.88; }
+.btn-danger   { background:var(--red);     color:#fff; }
+.btn-danger:hover   { opacity:.88; }
+.btn-ghost    { background:transparent; color:var(--text2); border:1px solid var(--border); }
+.btn-ghost:hover    { background:var(--card2); color:var(--text); }
+.btn-sm { padding:5px 11px; font-size:12px; }
+.btn-xs { padding:4px 8px;  font-size:11px; }
+
+.page-content { padding:20px 24px; flex:1; }
+.page { display:none; animation:fadeUp .25s ease; }
+.page.active { display:block; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+.card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; transition:border-color .2s; }
+.card:hover { border-color:rgba(0,212,255,.2); }
+[data-theme="light"] .card { box-shadow:var(--shadow); }
+
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+.stat-card {
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:18px; position:relative; overflow:hidden; transition:all .2s;
+}
+.stat-card::after {
+  content:''; position:absolute; top:0; right:0;
+  width:70px; height:70px; border-radius:0 12px 0 70px; opacity:.12;
+}
+.stat-card.blue::after   { background:var(--accent); }
+.stat-card.purple::after { background:var(--purple); }
+.stat-card.green::after  { background:var(--green); }
+.stat-card.yellow::after { background:var(--yellow); }
+.stat-card:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+.stat-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; margin-bottom:12px; }
+.stat-card.blue   .stat-icon { background:var(--accent-bg); color:var(--accent); }
+.stat-card.purple .stat-icon { background:var(--purple-bg); color:var(--purple); }
+.stat-card.green  .stat-icon { background:var(--green-bg);  color:var(--green);  }
+.stat-card.yellow .stat-icon { background:var(--yellow-bg); color:var(--yellow); }
+.stat-value { font-size:24px; font-weight:900; line-height:1; margin-bottom:5px; }
+.stat-label { font-size:12px; color:var(--text2); }
+
+.tbl-wrap { overflow-x:auto; border-radius:10px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead th {
+  background:var(--card2); padding:11px 14px; text-align:right;
+  font-size:11px; font-weight:700; color:var(--text2);
+  text-transform:uppercase; letter-spacing:.4px; white-space:nowrap;
+  border-bottom:1px solid var(--border);
+}
+tbody tr { border-bottom:1px solid var(--border2); transition:background .12s; }
+tbody tr:hover { background:var(--accent-bg); }
+tbody td { padding:11px 14px; vertical-align:middle; }
+tbody tr:last-child { border-bottom:none; }
+
+.badge { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-success { background:var(--green-bg);  color:var(--green);  }
+.badge-warning { background:var(--yellow-bg); color:var(--yellow); }
+.badge-danger  { background:var(--red-bg);    color:var(--red);    }
+.badge-info    { background:var(--accent-bg); color:var(--accent); }
+.badge-purple  { background:var(--purple-bg); color:var(--purple); }
+
+.form-row   { display:grid; gap:14px; }
+.form-row-2 { grid-template-columns:1fr 1fr; }
+.form-row-3 { grid-template-columns:1fr 1fr 1fr; }
+.form-row-4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+.fg { display:flex; flex-direction:column; gap:5px; }
+.fg label { font-size:12px; font-weight:600; color:var(--text2); }
+.fc {
+  background:var(--card2); border:1px solid var(--border);
+  border-radius:8px; padding:8px 12px; color:var(--text);
+  font-family:'Cairo',sans-serif; font-size:13px; width:100%; transition:border-color .15s;
+}
+.fc:focus { outline:none; border-color:var(--accent); }
+.fc::placeholder { color:var(--text3); }
+
+.overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.6);
+  backdrop-filter:blur(3px); z-index:500;
+  display:flex; align-items:center; justify-content:center; padding:16px;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.overlay.open { opacity:1; pointer-events:all; }
+.modal {
+  background:var(--card); border:1px solid var(--border); border-radius:16px;
+  width:100%; max-width:680px; max-height:92vh; overflow-y:auto;
+  transform:scale(.96) translateY(12px); transition:transform .2s;
+}
+.overlay.open .modal { transform:scale(1) translateY(0); }
+.modal-head {
+  padding:18px 22px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; background:var(--card); z-index:10;
+}
+.modal-head h3 { font-size:15px; font-weight:700; display:flex; align-items:center; gap:9px; }
+.modal-body { padding:22px; }
+.modal-foot { padding:14px 22px; border-top:1px solid var(--border); display:flex; gap:9px; justify-content:flex-end; }
+.close-btn {
+  width:32px; height:32px; border-radius:7px;
+  background:var(--card2); border:1px solid var(--border);
+  color:var(--text2); cursor:pointer; display:flex; align-items:center;
+  justify-content:center; font-size:14px; transition:all .15s;
+}
+.close-btn:hover { background:var(--red-bg); color:var(--red); border-color:var(--red); }
+
+.sec-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.sec-title { font-size:14px; font-weight:700; display:flex; align-items:center; gap:7px; }
+.sec-dot { width:7px; height:7px; border-radius:50%; background:var(--accent); }
+
+.search-wrap { position:relative; }
+.search-wrap input { padding-right:36px; }
+.search-wrap .si { position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--text3); font-size:13px; pointer-events:none; }
+
+.toast {
+  position:fixed; top:18px; left:50%; transform:translateX(-50%) translateY(-80px);
+  z-index:9999; padding:11px 22px; border-radius:10px; font-size:13.5px; font-weight:600;
+  display:flex; align-items:center; gap:9px; box-shadow:var(--shadow);
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1); pointer-events:none;
+  min-width:280px; justify-content:center;
+}
+.toast.show { transform:translateX(-50%) translateY(0); }
+.toast-success { background:var(--green);  color:#fff; }
+.toast-error   { background:var(--red);    color:#fff; }
+.toast-info    { background:var(--accent); color:#fff; }
+
+.loading {
+  position:fixed; inset:0; background:var(--bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:9999; transition:opacity .4s;
+}
+.loading.out { opacity:0; pointer-events:none; }
+.loading-icon {
+  width:72px; height:72px;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  border-radius:18px; display:flex; align-items:center; justify-content:center;
+  font-size:32px; animation:pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); box-shadow:0 0 30px rgba(0,212,255,.4); } }
+.loading h2 { margin-top:16px; font-size:17px; font-weight:900; }
+.loading p  { font-size:12px; color:var(--text2); margin-top:5px; }
+.loading-bar { width:180px; height:3px; background:var(--border); border-radius:3px; margin-top:14px; overflow:hidden; }
+.loading-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--purple)); animation:lbar 1.8s ease-in-out infinite; }
+@keyframes lbar { 0%{ width:0; } 100%{ width:100%; } }
+
+.login-screen {
+  position:fixed; inset:0; background:var(--bg);
+  display:flex; align-items:center; justify-content:center;
+  z-index:99999; flex-direction:column; gap:20px;
+}
+.login-box {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:20px; padding:36px; width:380px; max-width:95vw;
+  box-shadow:var(--shadow);
+}
+.login-logo {
+  width:64px; height:64px;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  border-radius:16px; display:flex; align-items:center; justify-content:center;
+  font-size:28px; margin:0 auto 14px;
+}
+.login-title { font-size:20px; font-weight:900; text-align:center; margin-bottom:4px; }
+.login-sub   { font-size:12px; color:var(--text2); text-align:center; margin-bottom:24px; }
+.login-err   { background:var(--red-bg); color:var(--red); border-radius:8px; padding:9px 12px; font-size:12px; margin-bottom:12px; display:none; }
+
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.mb-3   { margin-bottom:12px; }
+.mb-4   { margin-bottom:16px; }
+.flex   { display:flex; }
+.items-center    { align-items:center; }
+.justify-between { justify-content:space-between; }
+.gap-2  { gap:8px; }
+.gap-3  { gap:12px; }
+.text-accent { color:var(--accent); }
+.text-green  { color:var(--green);  }
+.text-red    { color:var(--red);    }
+.text-muted  { color:var(--text2);  }
+.font-bold   { font-weight:700;  }
+
+::-webkit-scrollbar       { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="loading-icon">🚀</div>
+  <h2>نظام الإدارة</h2>
+  <p>جاري التحميل...</p>
+  <div class="loading-bar"><div class="loading-fill"></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="login-screen" id="login-screen" style="display:none;">
+  <div class="login-box">
+    <div class="login-logo">🚀</div>
+    <div class="login-title">نظام الإدارة</div>
+    <div class="login-sub">تسجيل الدخول للمتابعة</div>
+    <div class="login-err" id="login-err"></div>
+    <div class="fg mb-3">
+      <label>اسم المستخدم</label>
+      <input class="fc" id="login-user" placeholder="username" autocomplete="username"
+             onkeydown="if(event.key==='Enter') document.getElementById('login-pass').focus()">
+    </div>
+    <div class="fg mb-3">
+      <label>كلمة المرور</label>
+      <input class="fc" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;margin-top:6px;" onclick="doLogin()">
+      <i class="fas fa-sign-in-alt"></i> دخول
+    </button>
+  </div>
+</div>
+
+<div class="layout" style="display:none;">
+
+  <nav class="sidebar">
+    <div class="sb-head">
+      <div class="sb-brand">
+        <div class="sb-brand-icon">🚀</div>
+        <div class="sb-brand-text">
+          <h2>نظام الإدارة</h2>
+          <p>الإصدار 1.0</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sb-nav">
+      <div class="sb-section">
+        <div class="sb-label">القائمة</div>
+        <div class="sb-item active" data-page="home" onclick="nav('home')">
+          <i class="fas fa-home"></i> الرئيسية
+        </div>
+        <div class="sb-item" data-page="sales" onclick="nav('sales')">
+          <i class="fas fa-chart-bar"></i> تقرير مبيعات الأصناف
+        </div>
+        <div class="sb-item" data-page="menu" onclick="nav('menu')">
+          <i class="fas fa-utensils"></i> المنيو
+        </div>
+      </div>
+
+      <div class="sb-section" id="admin-section">
+        <div class="sb-label">الإدارة</div>
+        <div class="sb-item" data-page="users" onclick="nav('users')">
+          <i class="fas fa-users-cog"></i> المستخدمون
+        </div>
+      </div>
+    </div>
+
+    <div class="sb-foot">
+      <span class="sb-status" id="conn-status">متصل</span>
+      <button class="theme-btn" onclick="toggleTheme()"><i class="fas fa-moon" id="theme-icon"></i></button>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <div class="topbar">
+      <div class="topbar-title">
+        <i id="pg-icon" class="fas fa-home"></i>
+        <span id="pg-title">الرئيسية</span>
+      </div>
+      <div class="topbar-actions">
+        <span class="clock" id="clock"></span>
+        <div class="topbar-user" id="topbar-user-info" style="display:none;"></div>
+        <button class="btn btn-ghost btn-sm" onclick="doLogout()">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="page active page-content" id="pg-home">
+      <div class="card" style="text-align:center;padding:60px 30px;">
+        <div style="font-size:64px;margin-bottom:16px;">🚀</div>
+        <h2 style="font-size:22px;font-weight:900;margin-bottom:8px;">القالب جاهز!</h2>
+        <p style="font-size:13px;color:var(--text2);max-width:400px;margin:0 auto 24px;">
+          هذا قالب فارغ جاهز للبناء. أضف صفحاتك في القائمة الجانبية وابدأ بالبرمجة.
+        </p>
+        <div style="display:inline-flex;gap:10px;">
+          <div style="background:var(--accent-bg);border:1px solid var(--accent);border-radius:10px;padding:12px 20px;font-size:12px;color:var(--accent);">
+            <i class="fas fa-database"></i> Firebase متصل
+          </div>
+          <div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:12px 20px;font-size:12px;color:var(--green);">
+            <i class="fas fa-check"></i> تسجيل الدخول يعمل
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page page-content" id="pg-users">
+      <div class="card">
+        <div class="sec-head">
+          <div class="sec-title"><div class="sec-dot"></div>إدارة المستخدمين</div>
+          <button class="btn btn-primary btn-sm" onclick="openAddUser()">
+            <i class="fas fa-plus"></i> مستخدم جديد
+          </button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>اسم المستخدم</th>
+                <th>الاسم</th>
+                <th>الدور</th>
+                <th>الحالة</th>
+                <th>آخر دخول</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbl">
+              <tr><td colspan="6" style="text-align:center;color:var(--text2);padding:20px;">جاري التحميل...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- صفحة تقرير مبيعات الأصناف -->
+    <div class="page page-content" id="pg-sales">
+
+      <!-- شريط الأدوات -->
+      <div class="card mb-4">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <label class="btn btn-primary btn-sm" style="cursor:pointer;">
+            <i class="fas fa-file-excel"></i> استيراد ملف مبيعات
+            <input type="file" id="sales-file-input" accept=".xlsx,.xls" style="display:none;" onchange="importAndAggregateSalesFile(this)">
+          </label>
+          <span id="upload-saving-indicator" style="display:none;font-size:12px;color:var(--accent);"><i class="fas fa-spinner fa-spin"></i> جاري الحفظ على السحابة...</span>
+          <div style="flex:1;"></div>
+
+          <!-- نوع المقارنة -->
+          <select class="fc" id="compare-type" style="width:auto;padding:6px 12px;" onchange="onCompareTypeChange()">
+            <option value="daily">📅 مقارنة يومية</option>
+            <option value="weekly">📆 مقارنة أسبوعية</option>
+            <option value="monthly">🗓️ مقارنة شهرية</option>
+          </select>
+
+          <!-- حقول الفترات - يومي -->
+          <div id="ctrl-daily" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div class="fg" style="min-width:140px;">
+              <label style="font-size:10px;">اليوم الأول</label>
+              <input type="date" class="fc" id="date1-daily" style="padding:6px 8px;" onchange="renderSalesComparison()">
+            </div>
+            <div class="fg" style="min-width:140px;">
+              <label style="font-size:10px;">اليوم الثاني</label>
+              <input type="date" class="fc" id="date2-daily" style="padding:6px 8px;" onchange="renderSalesComparison()">
+            </div>
+          </div>
+
+          <!-- حقول الفترات - أسبوعي -->
+          <div id="ctrl-weekly" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div class="fg" style="min-width:160px;">
+              <label style="font-size:10px;">يوم الأسبوع الماضي</label>
+              <input type="date" class="fc" id="date1-weekly" style="padding:6px 8px;" onchange="onWeeklyDate1Change()">
+            </div>
+            <div class="fg" style="min-width:160px;">
+              <label style="font-size:10px;">نفس اليوم هذا الأسبوع</label>
+              <input type="date" class="fc" id="date2-weekly" style="padding:6px 8px;" onchange="renderSalesComparison()">
+            </div>
+          </div>
+
+          <!-- حقول الفترات - شهري -->
+          <div id="ctrl-monthly" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div class="fg" style="min-width:150px;">
+              <label style="font-size:10px;">الشهر الأول</label>
+              <input type="month" class="fc" id="date1-monthly" style="padding:6px 8px;" onchange="renderSalesComparison()">
+            </div>
+            <div class="fg" style="min-width:150px;">
+              <label style="font-size:10px;">الشهر الثاني</label>
+              <input type="month" class="fc" id="date2-monthly" style="padding:6px 8px;" onchange="renderSalesComparison()">
+            </div>
+          </div>
+
+          <select class="fc" id="sales-branch-filter" style="width:auto;padding:6px 12px;" onchange="renderSalesComparison()">
+            <option value="all">🏢 كل الفروع</option>
+          </select>
+
+          <div class="search-wrap" style="width:180px;">
+            <input class="fc" id="sales-search" placeholder="بحث عن صنف..." style="padding:6px 8px;" oninput="renderSalesComparison()">
+            <i class="si fas fa-search"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- إحصاءات -->
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-icon"><i class="fas fa-calendar-day"></i></div><div class="stat-value" id="st-period1-qty">-</div><div class="stat-label" id="st-label1">الفترة الأولى</div></div>
+        <div class="stat-card green"><div class="stat-icon"><i class="fas fa-calendar-day"></i></div><div class="stat-value" id="st-period2-qty">-</div><div class="stat-label" id="st-label2">الفترة الثانية</div></div>
+        <div class="stat-card purple"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="stat-value" id="st-diff-qty">-</div><div class="stat-label">الفرق الكلي</div></div>
+        <div class="stat-card yellow"><div class="stat-icon"><i class="fas fa-percent"></i></div><div class="stat-value" id="st-diff-percent">-</div><div class="stat-label">نسبة التغير</div></div>
+      </div>
+
+      <!-- جدول التقرير -->
+      <div class="card">
+        <div class="sec-head">
+          <div class="sec-title"><div class="sec-dot"></div><span id="report-title">تقرير مقارنة المبيعات</span></div>
+          <span id="sales-count" style="font-size:12px;color:var(--text2);"></span>
+        </div>
+        <div class="tbl-wrap" id="sales-tbl-wrap">
+          <table id="sales-table">
+            <thead id="sales-thead">
+              <tr id="sales-header-row"></tr>
+              <tr id="sales-subheader-row"></tr>
+            </thead>
+            <tbody id="sales-tbody">
+              <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">استورد ملف Excel لعرض البيانات</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- صفحة المنيو -->
+    <div class="page page-content" id="pg-menu">
+
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <label class="btn btn-success btn-sm" style="cursor:pointer;">
+            <i class="fas fa-file-excel"></i> استيراد المنيو
+            <input type="file" id="menu-file-input" accept=".xlsx,.xls" style="display:none;" onchange="importMenuFile(this)">
+          </label>
+          <button class="btn btn-primary btn-sm" onclick="openAddMenuItem()">
+            <i class="fas fa-plus"></i> إضافة صنف
+          </button>
+          <div style="width:1px;height:24px;background:var(--border);margin:0 4px;"></div>
+          <button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green);" onclick="setAllMenuVisibility(true)">
+            <i class="fas fa-check-double"></i> تحديد الكل
+          </button>
+          <button class="btn btn-sm" style="background:var(--red-bg,#fff0f0);color:var(--red,#e53);border:1px solid var(--red,#e53);" onclick="setAllMenuVisibility(false)">
+            <i class="fas fa-times"></i> إلغاء الكل
+          </button>
+          <div style="flex:1;"></div>
+          <div class="search-wrap" style="width:220px;">
+            <input class="fc" id="menu-search" placeholder="بحث..." oninput="renderMenu()">
+            <i class="si fas fa-search"></i>
+          </div>
+          <select class="fc" id="menu-cat-filter" style="width:auto;padding:6px 12px;" onchange="renderMenu()">
+            <option value="all">كل الفئات</option>
+          </select>
+        </div>
+        <div id="menu-info-bar" style="display:none;margin-top:12px;padding:10px 14px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:8px;font-size:12px;">
+          <i class="fas fa-info-circle"></i> <span id="menu-info-text"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sec-head">
+          <div class="sec-title"><div class="sec-dot"></div>أصناف المنيو</div>
+          <span id="menu-count" style="font-size:12px;"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table id="menu-table">
+            <thead>
+              <tr id="menu-thead-row">
+                <th style="width:40px;text-align:center;">عرض</th>
+                <th>رقم الصنف</th>
+                <th>اسم الصنف</th>
+                <th>الفئة</th>
+                <th>السعر (ج.م)</th>
+                <th>الحالة</th>
+                <th id="menu-total-th">إجمالي المبيعات</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="menu-tbody">
+              <tr><td colspan="8" style="text-align:center;padding:40px;">استورد ملف Excel أو أضف أصنافاً</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="overlay" id="modal-user">
+  <div class="modal">
+    <div class="modal-head">
+      <h3><i class="fas fa-user"></i> <span id="user-modal-title">مستخدم جديد</span></h3>
+      <button class="close-btn" onclick="closeModal('modal-user')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row form-row-2 mb-3">
+        <div class="fg"><label>اسم المستخدم *</label><input class="fc" id="uf-username"></div>
+        <div class="fg"><label>الاسم الكامل *</label><input class="fc" id="uf-name"></div>
+      </div>
+      <div class="fg mb-3">
+        <label>كلمة المرور <span id="lbl-pass-req">*</span></label>
+        <input class="fc" type="password" id="uf-pass">
+        <small id="lbl-pass-hint"></small>
+      </div>
+      <div class="form-row form-row-2 mb-3">
+        <div class="fg"><label>الدور</label><select class="fc" id="uf-role"><option value="admin">مدير</option><option value="cashier">كاشير</option><option value="accountant">محاسب</option></select></div>
+        <div class="fg"><label>الحالة</label><select class="fc" id="uf-status"><option value="active">نشط</option><option value="inactive">معطل</option></select></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-user')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveUser()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-menu-item">
+  <div class="modal">
+    <div class="modal-head">
+      <h3><i class="fas fa-utensils"></i> <span id="menu-modal-title">صنف جديد</span></h3>
+      <button class="close-btn" onclick="closeModal('modal-menu-item')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row form-row-2 mb-3">
+        <div class="fg"><label>رقم الصنف</label><input class="fc" id="mf-id" type="number"></div>
+        <div class="fg"><label>اسم الصنف *</label><input class="fc" id="mf-name"></div>
+      </div>
+      <div class="form-row form-row-2 mb-3">
+        <div class="fg"><label>الفئة *</label><input class="fc" id="mf-category" list="menu-cats-list"><datalist id="menu-cats-list"></datalist></div>
+        <div class="fg"><label>السعر</label><input class="fc" id="mf-price" type="number"></div>
+      </div>
+      <div class="fg mb-3"><label>الحالة</label><select class="fc" id="mf-status"><option value="active">متاح</option><option value="inactive">غير متاح</option></select></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-menu-item')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveMenuItem()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const S = { users: {}, menu: {}, salesAggregated: {} };
+let CURRENT_USER = null;
+let editingUser = null;
+let editingMenuItem = null;
+const DB_PATH = 'rohdemshek';
+
+// ============================================================
+// FIREBASE HELPERS
+// ============================================================
+function dbRef(path) { return window.$ref(window.$db, DB_PATH + '/' + path); }
+function dbSet(path, data) { return window.$set(dbRef(path), data); }
+function dbRemove(path) { return window.$remove(dbRef(path)); }
+function dbUpdate(path, data) { return window.$update(dbRef(path), data); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2,6); }
+function listen(path, cb) { window.$onValue(dbRef(path), snap => cb(snap.val() || {})); }
+
+// ============================================================
+// CLOCK, THEME, TOAST, MODAL
+// ============================================================
+setInterval(() => { const el = document.getElementById('clock'); if(el) el.textContent = new Date().toLocaleTimeString('ar-EG'); }, 1000);
+
+function toggleTheme() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+  document.getElementById('theme-icon').className = dark ? 'fas fa-sun' : 'fas fa-moon';
+  localStorage.setItem('theme', dark ? 'light' : 'dark');
+}
+(function() { const t = localStorage.getItem('theme'); if(t) { document.documentElement.setAttribute('data-theme', t); document.getElementById('theme-icon') && (document.getElementById('theme-icon').className = t === 'dark' ? 'fas fa-moon' : 'fas fa-sun'); } })();
+
+let _toastT = null;
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<i class="fas fa-${type==='error'?'times-circle':'check-circle'}"></i> ${msg}`;
+  el.classList.add('show');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => el.classList.remove('show'), 3000);
+}
+function openModal(id) { document.getElementById(id)?.classList.add('open'); }
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+function fDate(iso) { if(!iso) return '-'; try { return new Date(iso).toLocaleString('ar-EG'); } catch(e) { return iso; } }
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+const PAGE_CONFIG = { home: { title:'الرئيسية', icon:'fas fa-home' }, users: { title:'المستخدمين', icon:'fas fa-users-cog' }, sales: { title:'مقارنة المبيعات', icon:'fas fa-chart-bar' }, menu: { title:'المنيو', icon:'fas fa-utensils' } };
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('pg-' + page)?.classList.add('active');
+  document.querySelector(`.sb-item[data-page="${page}"]`)?.classList.add('active');
+  const cfg = PAGE_CONFIG[page] || {};
+  document.getElementById('pg-title').textContent = cfg.title || '';
+  document.getElementById('pg-icon').className = cfg.icon || '';
+  if (page === 'sales') { onCompareTypeChange(); renderSalesComparison(); }
+  if (page === 'menu') renderMenu();
+}
+
+// ============================================================
+// LOGIN / LOGOUT
+// ============================================================
+function doLogin() {
+  const username = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+  if (!username || !pass) { errEl.textContent = 'يرجى إدخال البيانات'; errEl.style.display = 'block'; return; }
+  const users = S.users || {};
+  const found = Object.entries(users).find(([, u]) => u.username === username && u.status === 'active');
+  if (!found) { errEl.textContent = 'اسم المستخدم غير موجود'; errEl.style.display = 'block'; return; }
+  const [uid_u, user] = found;
+  if (user.password !== btoa(pass)) { errEl.textContent = 'كلمة المرور غير صحيحة'; errEl.style.display = 'block'; return; }
+  CURRENT_USER = { ...user, id: uid_u };
+  dbUpdate('users/' + uid_u, { lastLogin: new Date().toISOString() });
+  sessionStorage.setItem('app-user', JSON.stringify(CURRENT_USER));
+  showApp();
+}
+function doLogout() {
+  if (!confirm('تسجيل الخروج؟')) return;
+  CURRENT_USER = null;
+  sessionStorage.removeItem('app-user');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.querySelector('.layout').style.display = 'none';
+}
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.querySelector('.layout').style.display = 'flex';
+  const info = document.getElementById('topbar-user-info');
+  if (info && CURRENT_USER) {
+    const roleMap = { admin:'مدير', cashier:'كاشير', accountant:'محاسب' };
+    const roleClass = { admin:'role-admin', cashier:'role-cashier', accountant:'role-accountant' };
+    info.style.display = 'flex';
+    info.innerHTML = `<i class="fas fa-user-circle"></i> <strong>${CURRENT_USER.name}</strong> <span class="user-role-badge ${roleClass[CURRENT_USER.role]}">${roleMap[CURRENT_USER.role]}</span>`;
+  }
+  if (CURRENT_USER?.role !== 'admin') document.getElementById('admin-section')?.remove();
+}
+function checkSession() { const saved = sessionStorage.getItem('app-user'); if(saved) { try { CURRENT_USER = JSON.parse(saved); return true; } catch(e){} } return false; }
+
+// ============================================================
+// USERS
+// ============================================================
+function renderUsers() {
+  const tbody = document.getElementById('users-tbl');
+  if (!tbody) return;
+  const users = S.users || {};
+  const roleMap = { admin:'مدير', cashier:'كاشير', accountant:'محاسب' };
+  const roleClass = { admin:'badge-danger', cashier:'badge-success', accountant:'badge-purple' };
+  const rows = Object.entries(users).filter(([, u]) => !u.hidden);
+  tbody.innerHTML = rows.length ? rows.map(([id, u]) => `<tr>
+        <td><strong>${u.username}</strong></td><td>${u.name||'-'}</td>
+        <td><span class="badge ${roleClass[u.role]}">${roleMap[u.role]}</span></td>
+        <td><span class="badge ${u.status==='active'?'badge-success':'badge-danger'}">${u.status==='active'?'نشط':'معطل'}</span></td>
+        <td>${u.lastLogin?fDate(u.lastLogin):'-'}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="editUser('${id}')"><i class="fas fa-edit"></i></button>${id !== CURRENT_USER?.id ? `<button class="btn btn-danger btn-xs" onclick="delUser('${id}')"><i class="fas fa-trash"></i></button>` : ''}</td>
+      </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;">لا يوجد مستخدمون</td></tr>';
+}
+function openAddUser() { editingUser = null; document.getElementById('user-modal-title').textContent = 'مستخدم جديد'; ['uf-username','uf-name','uf-pass'].forEach(id => document.getElementById(id).value = ''); document.getElementById('uf-username').disabled = false; document.getElementById('uf-role').value = 'cashier'; document.getElementById('uf-status').value = 'active'; document.getElementById('lbl-pass-req').style.display = 'inline'; document.getElementById('lbl-pass-hint').textContent = ''; openModal('modal-user'); }
+function editUser(id) { const u = S.users[id]; if(!u || u.hidden) { toast('لا يمكن التعديل', 'error'); return; } editingUser = id; document.getElementById('user-modal-title').textContent = 'تعديل مستخدم'; document.getElementById('uf-username').value = u.username; document.getElementById('uf-username').disabled = true; document.getElementById('uf-name').value = u.name||''; document.getElementById('uf-pass').value = ''; document.getElementById('uf-role').value = u.role; document.getElementById('uf-status').value = u.status; document.getElementById('lbl-pass-req').style.display = 'none'; document.getElementById('lbl-pass-hint').textContent = 'اتركها فارغة إن لم ترد التغيير'; openModal('modal-user'); }
+async function saveUser() {
+  const username = document.getElementById('uf-username').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const name = document.getElementById('uf-name').value.trim();
+  const pass = document.getElementById('uf-pass').value;
+  const role = document.getElementById('uf-role').value;
+  const status = document.getElementById('uf-status').value;
+  if(!username || !name) { toast('يرجى إدخال البيانات', 'error'); return; }
+  if(!editingUser && !pass) { toast('كلمة المرور مطلوبة', 'error'); return; }
+  if(pass && pass.length < 6) { toast('كلمة المرور 6 أحرف على الأقل', 'error'); return; }
+  const dup = Object.entries(S.users).find(([id,u]) => u.username === username && id !== editingUser);
+  if(dup) { toast('اسم المستخدم موجود', 'error'); return; }
+  const data = { username, name, role, status, updatedAt: new Date().toISOString() };
+  if(pass) data.password = btoa(pass);
+  try { if(editingUser) await dbUpdate('users/' + editingUser, data); else { data.createdAt = new Date().toISOString(); await dbSet('users/' + uid(), data); } closeModal('modal-user'); toast('تم الحفظ'); } catch(e) { toast('خطأ: ' + e.message, 'error'); }
+}
+async function delUser(id) { if(id === CURRENT_USER?.id) { toast('لا يمكن حذف حسابك', 'error'); return; } if(!confirm('حذف المستخدم؟')) return; try { await dbRemove('users/' + id); toast('تم الحذف'); } catch(e) { toast('خطأ', 'error'); } }
+async function initDefaultUsers() { const users = S.users || {}; if(!Object.values(users).some(u => u.username === 'admin')) { await dbSet('users/admin-default', { username:'admin', password:btoa('admin123'), name:'المدير الرئيسي', role:'admin', status:'active', createdAt:new Date().toISOString(), lastLogin:null }); } }
+
+// ============================================================
+// SALES AGGREGATION & COMPARISON  (نسخة محسّنة)
+// ============================================================
+
+function onCompareTypeChange() {
+  const t = document.getElementById('compare-type').value;
+  document.getElementById('ctrl-daily').style.display   = t === 'daily'   ? 'flex' : 'none';
+  document.getElementById('ctrl-weekly').style.display  = t === 'weekly'  ? 'flex' : 'none';
+  document.getElementById('ctrl-monthly').style.display = t === 'monthly' ? 'flex' : 'none';
+  renderSalesComparison();
+}
+
+function getActiveInputs() {
+  const t = document.getElementById('compare-type').value;
+  if (t === 'daily')   return { type: 'day',   v1: document.getElementById('date1-daily').value,   v2: document.getElementById('date2-daily').value };
+  if (t === 'weekly')  return { type: 'day',   v1: document.getElementById('date1-weekly').value,  v2: document.getElementById('date2-weekly').value };
+  if (t === 'monthly') return { type: 'month', v1: document.getElementById('date1-monthly').value, v2: document.getElementById('date2-monthly').value };
+}
+
+// عند اختيار يوم الأسبوع الماضي، يملأ تلقائياً نفس اليوم هذا الأسبوع (+7 أيام)
+function onWeeklyDate1Change() {
+  const v1 = document.getElementById('date1-weekly').value;
+  if (v1) {
+    const d = new Date(v1);
+    d.setDate(d.getDate() + 7);
+    document.getElementById('date2-weekly').value = d.toISOString().split('T')[0];
+  }
+  renderSalesComparison();
+}
+
+async function importAndAggregateSalesFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  toast('جاري قراءة الملف...', 'info');
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type:'array' });
+    let newRowsCount = 0;
+    const tempAgg = {};
+    
+    wb.SheetNames.forEach(sheetName => {
+      const ws = wb.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      json.forEach(row => {
+        const itemName = row['اسم الصنف'] || '';
+        if (!itemName) return;
+        
+        let rawDate = row['تاريخ اليومية'];
+        let dateStr = '';
+
+        if (rawDate !== undefined && rawDate !== null && rawDate !== '') {
+          if (typeof rawDate === 'number') {
+            // Excel serial date → JS Date
+            // Excel epoch: Jan 1 1900, JS epoch: Jan 1 1970
+            // Excel has a leap-year bug for 1900 so offset is 25569 days
+            const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+            const jsDate = new Date(excelEpoch.getTime() + rawDate * 86400000);
+            const y = jsDate.getUTCFullYear();
+            const m = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(jsDate.getUTCDate()).padStart(2, '0');
+            dateStr = `${y}-${m}-${d}`;
+          } else if (typeof rawDate === 'string') {
+            const s = rawDate.trim();
+            // إذا كان يحتوي على فراغ (تاريخ + وقت)
+            const part = s.includes(' ') ? s.split(' ')[0] : s;
+            // استبدال / بـ -
+            const normalized = part.replace(/\//g, '-');
+            // كشف الفورمات: DD-MM-YYYY أو YYYY-MM-DD
+            const parts = normalized.split('-');
+            if (parts.length === 3) {
+              if (parts[0].length === 4) {
+                // YYYY-MM-DD
+                dateStr = normalized;
+              } else {
+                // DD-MM-YYYY → YYYY-MM-DD
+                dateStr = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+              }
+            } else {
+              dateStr = normalized; // best effort
+            }
+          }
+        }
+
+        // fallback: اسم الشيت إذا كان يشبه تاريخاً، وإلا اليوم الحالي
+        if (!dateStr) {
+          const sn = sheetName.trim().replace(/\//g, '-');
+          const snParts = sn.split('-');
+          if (snParts.length === 3) {
+            dateStr = snParts[0].length === 4
+              ? sn
+              : `${snParts[2]}-${snParts[1].padStart(2,'0')}-${snParts[0].padStart(2,'0')}`;
+          } else {
+            dateStr = new Date().toISOString().split('T')[0];
+          }
+        }
+        
+        const itemId = String(row['رقم الصنف'] || '').trim();
+        const category = row['فئة الصنف'] || 'أخرى';
+        const branch = row['الفرع'] || sheetName;
+        const qtyTotal = parseFloat(row['كل الكمية'] || 0) || 0;
+        const revenue = parseFloat(row['الصافى'] || 0) || 0;
+        const price = parseFloat(row['سعر'] || 0) || 0;
+        
+        if (qtyTotal === 0) return;
+        newRowsCount++;
+        
+        if (!tempAgg[dateStr]) tempAgg[dateStr] = {};
+        if (!tempAgg[dateStr][branch]) tempAgg[dateStr][branch] = {};
+        if (!tempAgg[dateStr][branch][itemId]) {
+          tempAgg[dateStr][branch][itemId] = { qty:0, revenue:0, name: itemName, category, price };
+        }
+        tempAgg[dateStr][branch][itemId].qty += qtyTotal;
+        tempAgg[dateStr][branch][itemId].revenue += revenue;
+      });
+    });
+    
+    for (const date in tempAgg) {
+      if (!S.salesAggregated[date]) S.salesAggregated[date] = {};
+      for (const branch in tempAgg[date]) {
+        if (!S.salesAggregated[date][branch]) S.salesAggregated[date][branch] = {};
+        for (const itemId in tempAgg[date][branch]) {
+          if (!S.salesAggregated[date][branch][itemId]) {
+            S.salesAggregated[date][branch][itemId] = { ...tempAgg[date][branch][itemId] };
+          } else {
+            S.salesAggregated[date][branch][itemId].qty += tempAgg[date][branch][itemId].qty;
+            S.salesAggregated[date][branch][itemId].revenue += tempAgg[date][branch][itemId].revenue;
+          }
+        }
+      }
+    }
+    
+    // حفظ تلقائي على Firebase فور الرفع
+    const detectedDates = Object.keys(tempAgg).sort();
+    setDefaultDates();
+    renderSalesComparison();
+    const datesSummary = detectedDates.length > 0
+      ? `📅 التواريخ: ${detectedDates.join(' | ')}`
+      : '⚠️ لم يُكتشف تاريخ';
+    toast(`تم تجميع ${newRowsCount} سجل — ${datesSummary} — جاري الحفظ...`, 'info');
+    console.log('🔍 التواريخ المكتشفة:', detectedDates);
+    console.log('🔍 البيانات المجمّعة:', JSON.stringify(Object.keys(S.salesAggregated)));
+    const ind = document.getElementById('upload-saving-indicator');
+    if (ind) ind.style.display = 'inline-flex';
+    try {
+      await dbSet('sales_aggregated', S.salesAggregated);
+      toast(`✅ تم الحفظ على السحابة (${newRowsCount} سجل)`);
+    } catch(saveErr) {
+      toast('تحذير: تعذّر الحفظ على السحابة: ' + saveErr.message, 'error');
+    } finally {
+      if (ind) ind.style.display = 'none';
+    }
+  } catch(e) {
+    console.error(e);
+    toast('خطأ: ' + e.message, 'error');
+  }
+  input.value = '';
+}
+
+function setDefaultDates() {
+  const dates = Object.keys(S.salesAggregated).sort();
+  if (dates.length === 0) return;
+  const last  = dates[dates.length - 1];
+  const prev  = dates.length >= 2 ? dates[dates.length - 2] : last;
+
+  // يومي
+  const d1d = document.getElementById('date1-daily');
+  const d2d = document.getElementById('date2-daily');
+  if (d1d && !d1d.value) d1d.value = prev;
+  if (d2d && !d2d.value) d2d.value = last;
+
+  // أسبوعي — يأخذ آخر يوم موجود ويضع قبله بـ 7 أيام تلقائياً
+  const d2w = document.getElementById('date2-weekly');
+  const d1w = document.getElementById('date1-weekly');
+  if (d2w && !d2w.value) {
+    d2w.value = last;
+    if (d1w && !d1w.value) {
+      const d = new Date(last);
+      d.setDate(d.getDate() - 7);
+      d1w.value = d.toISOString().split('T')[0];
+    }
+  }
+
+  // شهري
+  const toMonthStr = (dateStr) => dateStr.substring(0, 7);
+  const d1m = document.getElementById('date1-monthly');
+  const d2m = document.getElementById('date2-monthly');
+  if (d1m && !d1m.value) d1m.value = toMonthStr(prev);
+  if (d2m && !d2m.value) d2m.value = toMonthStr(last);
+}
+
+function getPeriodData(periodType, periodValue) {
+  const result = {};
+  for (const date in S.salesAggregated) {
+    let match = false;
+    if (periodType === 'day') match = (date === periodValue);
+    else if (periodType === 'week') {
+      const [year, week] = periodValue.split('-W');
+      const firstDay = getDateOfISOWeek(parseInt(year), parseInt(week));
+      const lastDay = new Date(firstDay);
+      lastDay.setDate(firstDay.getDate() + 6);
+      const dateObj = new Date(date);
+      match = dateObj >= firstDay && dateObj <= lastDay;
+    } else if (periodType === 'month') match = date.startsWith(periodValue);
+    if (match) {
+      for (const branch in S.salesAggregated[date]) {
+        if (!result[branch]) result[branch] = {};
+        for (const itemId in S.salesAggregated[date][branch]) {
+          const item = S.salesAggregated[date][branch][itemId];
+          if (!result[branch][itemId]) result[branch][itemId] = { qty:0, revenue:0, name: item.name, category: item.category, price: item.price };
+          result[branch][itemId].qty += item.qty;
+          result[branch][itemId].revenue += item.revenue;
+        }
+      }
+    }
+  }
+  return result;
+}
+
+function getDateOfISOWeek(year, week) {
+  const simple = new Date(year, 0, 1 + (week - 1) * 7);
+  const dow = simple.getDay();
+  const ISOweekStart = simple;
+  if (dow <= 4) ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+  else ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+  return ISOweekStart;
+}
+
+function getPeriodLabel(periodType, periodValue) {
+  if (periodType === 'day') {
+    const d = new Date(periodValue);
+    return d.toLocaleDateString('ar-EG', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  }
+  if (periodType === 'week') {
+    const [year, week] = periodValue.split('-W');
+    const first = getDateOfISOWeek(parseInt(year), parseInt(week));
+    const last = new Date(first); last.setDate(first.getDate() + 6);
+    return `الأسبوع ${week} (${first.toLocaleDateString('ar-EG',{month:'short',day:'numeric'})} - ${last.toLocaleDateString('ar-EG',{month:'short',day:'numeric'})})`;
+  }
+  if (periodType === 'month') {
+    const [year, month] = periodValue.split('-');
+    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    return `${monthNames[parseInt(month)-1]} ${year}`;
+  }
+  return periodValue;
+}
+
+function getShortPeriodLabel(periodType, periodValue) {
+  if (periodType === 'day') {
+    const d = new Date(periodValue);
+    return d.toLocaleDateString('ar-EG', { weekday:'short', month:'short', day:'numeric' });
+  }
+  if (periodType === 'week') return `أسبوع ${periodValue.split('-W')[1]}`;
+  if (periodType === 'month') {
+    const [year, month] = periodValue.split('-');
+    const mn = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    return `${mn[parseInt(month)-1]} ${year}`;
+  }
+  return periodValue;
+}
+
+function renderSalesComparison() {
+  const inp = getActiveInputs();
+  if (!inp) return;
+  const { type, v1, v2 } = inp;
+  if (!v1 || !v2) return;
+
+  const data1 = getPeriodData(type, v1);
+  const data2 = getPeriodData(type, v2);
+  const searchText = (document.getElementById('sales-search').value || '').trim().toLowerCase();
+
+  // فلتر الفرع المختار
+  const branchFilter = document.getElementById('sales-branch-filter')?.value || 'all';
+
+  // جمع كل الفروع من السحابة
+  const allBranches = new Set();
+  for (const date in S.salesAggregated) {
+    for (const b in S.salesAggregated[date]) allBranches.add(b);
+  }
+  for (const b in data1) allBranches.add(b);
+  for (const b in data2) allBranches.add(b);
+  const allBranchesSorted = [...allBranches].sort();
+
+  // تحديث قائمة الفروع في الفلتر
+  updateSalesBranchFilter(allBranchesSorted);
+
+  // تحديد الفروع المراد عرضها
+  const branches = branchFilter === 'all'
+    ? allBranchesSorted
+    : allBranchesSorted.filter(b => b === branchFilter);
+
+  // الأصناف المسموح بعرضها (visibleInReport !== false)
+  const visibleItemNames = new Set();
+  const visibleItemIds   = new Set();
+  const hasMenuData = Object.keys(S.menu || {}).length > 0;
+  if (hasMenuData) {
+    for (const id in S.menu) {
+      if (S.menu[id].visibleInReport !== false) {
+        if (S.menu[id].name)   visibleItemNames.add(S.menu[id].name);
+        if (S.menu[id].itemId) visibleItemIds.add(String(S.menu[id].itemId));
+      }
+    }
+  }
+
+  // جمع كل الأصناف مع ضمان أن كل فرع موجود في كل صنف
+  const itemsMap = new Map();
+
+  const mergeDataInto = (dataSet, qtyKey) => {
+    for (const branch in dataSet) {
+      for (const itemId in dataSet[branch]) {
+        const item = dataSet[branch][itemId];
+        const key = `${itemId}|${item.name}`;
+        if (!itemsMap.has(key)) {
+          // ابدأ الصنف مع كل الفروع بصفر
+          const initBranches = {};
+          for (const b of branches) initBranches[b] = { qty1: 0, qty2: 0 };
+          itemsMap.set(key, { itemId, name: item.name, category: item.category, branches: initBranches });
+        }
+        const entry = itemsMap.get(key);
+        if (!entry.branches[branch]) entry.branches[branch] = { qty1: 0, qty2: 0 };
+        entry.branches[branch][qtyKey] += item.qty; // += وليس =
+      }
+    }
+  };
+
+  mergeDataInto(data1, 'qty1');
+  mergeDataInto(data2, 'qty2');
+
+  let items = Array.from(itemsMap.values());
+
+  // فلتر الرؤية من المنيو — لو المنيو فيه بيانات نطبّق الفلتر
+  if (hasMenuData) {
+    items = items.filter(item =>
+      visibleItemNames.has(item.name) || visibleItemIds.has(String(item.itemId))
+    );
+  }
+
+  // حذف الأصناف التي ليس لها أي مبيعات في الفترتين والفروع المختارة
+  items = items.filter(item => {
+    for (const b of branches) {
+      const bd = item.branches[b];
+      if (bd && (bd.qty1 > 0 || bd.qty2 > 0)) return true;
+    }
+    return false;
+  });
+  if (searchText) items = items.filter(i => i.name.toLowerCase().includes(searchText));
+
+  // إحصاءات كلية
+  let totalQty1 = 0, totalQty2 = 0;
+  for (const item of items) {
+    for (const b of branches) {
+      const bd = item.branches[b] || {};
+      totalQty1 += bd.qty1 || 0;
+      totalQty2 += bd.qty2 || 0;
+    }
+  }
+  const diff = totalQty2 - totalQty1;
+  const pct = totalQty1 > 0 ? ((diff/totalQty1)*100).toFixed(1) : (totalQty2 > 0 ? 100 : 0);
+
+  document.getElementById('st-period1-qty').textContent = totalQty1.toLocaleString('ar-EG');
+  document.getElementById('st-period2-qty').textContent = totalQty2.toLocaleString('ar-EG');
+  document.getElementById('st-diff-qty').textContent = (diff > 0 ? '+' : '') + diff.toLocaleString('ar-EG');
+  document.getElementById('st-diff-percent').textContent = (diff > 0 ? '+' : '') + pct + '%';
+
+  const compareMode = document.getElementById('compare-type').value;
+  if (compareMode === 'weekly') {
+    document.getElementById('st-label1').textContent = `الأسبوع الماضي — ${getPeriodLabel(type, v1)}`;
+    document.getElementById('st-label2').textContent = `هذا الأسبوع — ${getPeriodLabel(type, v2)}`;
+  } else {
+    document.getElementById('st-label1').textContent = getPeriodLabel(type, v1);
+    document.getElementById('st-label2').textContent = getPeriodLabel(type, v2);
+  }
+
+  const lbl1 = compareMode === 'weekly'
+    ? `أسبوع ماضي\n${getShortPeriodLabel(type,v1)}` : getShortPeriodLabel(type, v1);
+  const lbl2 = compareMode === 'weekly'
+    ? `هذا الأسبوع\n${getShortPeriodLabel(type,v2)}` : getShortPeriodLabel(type, v2);
+
+  // ===================================================
+  // بناء رأس الجدول
+  // الهيكل: [#] [الصنف] [الفئة]  | لكل فرع: [lbl1] [lbl2] [الفرق]
+  // ===================================================
+  const headerRow    = document.getElementById('sales-header-row');
+  const subHeaderRow = document.getElementById('sales-subheader-row');
+
+  let headerHTML    = `<th rowspan="2" style="min-width:30px;">#</th>
+                       <th rowspan="2" style="min-width:140px;">اسم الصنف</th>
+                       <th rowspan="2" style="min-width:90px;">الفئة</th>`;
+  let subHeaderHTML = '';
+
+  for (const b of branches) {
+    headerHTML += `<th colspan="3" style="background:var(--purple-bg);color:var(--purple);text-align:center;border-right:2px solid var(--purple);min-width:240px;">${b}</th>`;
+    subHeaderHTML += `
+      <th style="background:var(--accent-bg);color:var(--accent);min-width:70px;text-align:center;">${lbl1}</th>
+      <th style="background:var(--green-bg);color:var(--green);min-width:70px;text-align:center;">${lbl2}</th>
+      <th style="background:var(--yellow-bg);color:var(--yellow);min-width:70px;text-align:center;border-left:2px solid var(--border);">الفرق</th>`;
+  }
+
+  headerRow.innerHTML    = headerHTML;
+  subHeaderRow.innerHTML = subHeaderHTML;
+
+  // ===================================================
+  // بناء صفوف الجدول
+  // ===================================================
+  const tbody = document.getElementById('sales-tbody');
+  const hiddenCount = hasMenuData
+    ? Array.from(itemsMap.values()).filter(item =>
+        !visibleItemNames.has(item.name) && !visibleItemIds.has(String(item.itemId))
+      ).length
+    : 0;
+  const hiddenNote = hiddenCount > 0
+    ? ` <span style="font-size:11px;color:var(--text3);font-weight:400;">(${hiddenCount} مخفي من المنيو)</span>`
+    : '';
+  document.getElementById('sales-count').innerHTML = items.length
+    ? `${items.length} صنف${hiddenNote}` : '';
+
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="${3 + branches.length * 3}" style="text-align:center;padding:40px;color:var(--text2);">لا توجد بيانات للفترة المحددة</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items.map((item, idx) => {
+    let cells = `<td style="color:var(--text3);font-size:12px;">${idx + 1}</td>
+                 <td><strong>${item.name}</strong></td>
+                 <td><span class="badge badge-info" style="font-size:10px;">${item.category || '-'}</span></td>`;
+    for (const b of branches) {
+      const bd = item.branches[b] || { qty1: 0, qty2: 0 };
+      const d = bd.qty2 - bd.qty1;
+      const dClass = d > 0 ? 'text-green' : d < 0 ? 'text-red' : '';
+      cells += `
+        <td style="text-align:center;color:var(--accent);">${bd.qty1 > 0 ? bd.qty1.toLocaleString('ar-EG') : '<span style="color:var(--text3)">-</span>'}</td>
+        <td style="text-align:center;color:var(--green);font-weight:700;">${bd.qty2 > 0 ? bd.qty2.toLocaleString('ar-EG') : '<span style="color:var(--text3)">-</span>'}</td>
+        <td class="${dClass}" style="text-align:center;font-weight:700;border-left:2px solid var(--border);">${(bd.qty1 > 0 || bd.qty2 > 0) ? (d > 0 ? '+' : '') + d.toLocaleString('ar-EG') : '-'}</td>`;
+    }
+    return `<tr>${cells}</tr>`;
+  }).join('');
+}
+
+// ============================================================
+// MENU
+// ============================================================
+
+async function importMenuFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  toast('جاري القراءة...', 'info');
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type:'array' });
+    let imported = 0, updated = 0;
+    const menuMap = {};
+    Object.entries(S.menu || {}).forEach(([k, v]) => { if(v.itemId) menuMap[String(v.itemId)] = k; });
+    const writes = [];
+    wb.SheetNames.forEach(sheetName => {
+      const ws = wb.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      json.forEach(row => {
+        const itemName = (row['اسم الصنف'] || '').trim();
+        const itemId = String(row['رقم الصنف'] || '').trim();
+        const category = (row['فئة الصنف'] || 'أخرى').trim();
+        const price = parseFloat(row['سعر'] || 0) || 0;
+        if(!itemName) return;
+        const existingKey = itemId ? menuMap[itemId] : null;
+        const menuData = { name: itemName, itemId, category, price, status:'active', updatedAt: new Date().toISOString() };
+        if(existingKey) { writes.push({ path: 'menu/' + existingKey, data: menuData, isNew: false }); updated++; }
+        else { const newKey = uid(); if(itemId) menuMap[itemId] = newKey; menuData.createdAt = new Date().toISOString(); writes.push({ path: 'menu/' + newKey, data: menuData, isNew: true }); imported++; }
+      });
+    });
+    for(let i=0; i<writes.length; i+=50) { const chunk = writes.slice(i,i+50); for(const w of chunk) { if(w.isNew) await dbSet(w.path, w.data); else await dbUpdate(w.path, w.data); } }
+    const bar = document.getElementById('menu-info-bar'); const txt = document.getElementById('menu-info-text');
+    if(bar && txt) { txt.textContent = `تم استيراد ${imported} جديد، ${updated} محدث`; bar.style.display = 'block'; setTimeout(() => bar.style.display = 'none', 5000); }
+    toast(`تم استيراد المنيو ✅`);
+  } catch(e) { toast('خطأ: ' + e.message, 'error'); }
+  input.value = '';
+}
+
+function getItemTotalSales(itemId, itemName) {
+  let total = 0;
+  for (const date in S.salesAggregated) {
+    for (const branch in S.salesAggregated[date]) {
+      for (const id in S.salesAggregated[date][branch]) {
+        if (id === itemId || (S.salesAggregated[date][branch][id].name === itemName)) {
+          total += S.salesAggregated[date][branch][id].qty;
+        }
+      }
+    }
+  }
+  return total;
+}
+
+function getItemSalesByBranchForMenu(itemId, itemName) {
+  const result = {};
+  for (const date in S.salesAggregated) {
+    for (const branch in S.salesAggregated[date]) {
+      for (const id in S.salesAggregated[date][branch]) {
+        if (id === itemId || (S.salesAggregated[date][branch][id].name === itemName)) {
+          result[branch] = (result[branch] || 0) + S.salesAggregated[date][branch][id].qty;
+        }
+      }
+    }
+  }
+  return result;
+}
+
+function getKnownBranchesForMenu() {
+  const branches = new Set();
+  for (const date in S.salesAggregated) {
+    for (const branch in S.salesAggregated[date]) {
+      branches.add(branch);
+    }
+  }
+  return [...branches].sort();
+}
+
+function renderMenu() {
+  const menu = S.menu || {};
+  const search = (document.getElementById('menu-search')?.value || '').trim().toLowerCase();
+  const catF = document.getElementById('menu-cat-filter')?.value || 'all';
+  const items = Object.entries(menu);
+  
+  const cats = [...new Set(items.map(([,i]) => i.category).filter(Boolean))].sort();
+  const datalist = document.getElementById('menu-cats-list');
+  if(datalist) datalist.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+  const catSel = document.getElementById('menu-cat-filter');
+  if(catSel) { const prev = catSel.value; catSel.innerHTML = '<option value="all">كل الفئات</option>' + cats.map(c => `<option value="${c}" ${c===prev?'selected':''}>${c}</option>`).join(''); }
+  
+  const filtered = items.filter(([, i]) => {
+    if(search && !(i.name || '').toLowerCase().includes(search)) return false;
+    if(catF !== 'all' && i.category !== catF) return false;
+    return true;
+  });
+  
+  const branches = getKnownBranchesForMenu();
+  const thead = document.getElementById('menu-thead-row');
+  if(thead) {
+    const branchCols = branches.map(b => `<th style="background:var(--purple-bg);color:var(--purple);font-size:11px;">${b}</th>`).join('');
+    thead.innerHTML = `
+      <th style="width:44px;text-align:center;">
+        <span title="عرض في التقرير" style="font-size:10px;color:var(--accent);">عرض</span>
+      </th>
+      <th>رقم الصنف</th><th>اسم الصنف</th><th>الفئة</th><th>السعر (ج.م)</th><th>الحالة</th>
+      ${branchCols}
+      <th style="background:var(--green-bg);color:var(--green);">إجمالي المبيعات</th>
+      <th>إجراءات</th>`;
+  }
+  
+  const tbody = document.getElementById('menu-tbody');
+  const colCount = 7 + branches.length;
+  document.getElementById('menu-count').textContent = items.length ? `${filtered.length} من ${items.length} صنف` : '';
+  if(!items.length) { tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:30px;">لا توجد أصناف</td></tr>`; return; }
+  if(!filtered.length) { tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:30px;">لا توجد نتائج</td></tr>`; return; }
+  
+  tbody.innerHTML = filtered.map(([id, item]) => {
+    const isVisible = item.visibleInReport !== false; // افتراضي: ظاهر
+    const branchSales = getItemSalesByBranchForMenu(item.itemId, item.name);
+    const totalSales = Object.values(branchSales).reduce((s,v) => s+v, 0);
+    const statusBadge = item.status === 'active'
+      ? '<span class="badge badge-success">متاح</span>'
+      : '<span class="badge badge-danger">غير متاح</span>';
+    const branchCells = branches.map(b =>
+      `<td style="text-align:center;${branchSales[b] ? 'color:var(--purple);font-weight:700;' : ''}">
+        ${branchSales[b]?.toLocaleString() || '-'}
+      </td>`
+    ).join('');
+    return `<tr style="${!isVisible ? 'opacity:0.45;' : ''}">
+      <td style="text-align:center;">
+        <label class="vis-toggle" title="${isVisible ? 'ظاهر في التقرير — اضغط للإخفاء' : 'مخفي من التقرير — اضغط للإظهار'}"
+          style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+            width:28px;height:28px;border-radius:6px;transition:.2s;
+            background:${isVisible ? 'var(--green-bg)' : 'var(--border)'};
+            color:${isVisible ? 'var(--green)' : 'var(--text3)'};"
+          onclick="toggleMenuItemVisibility('${id}', ${!isVisible})">
+          <i class="fas fa-${isVisible ? 'eye' : 'eye-slash'}"></i>
+        </label>
+      </td>
+      <td style="color:var(--text3);">${item.itemId || '-'}</td>
+      <td><strong>${item.name}</strong></td>
+      <td><span class="badge badge-info">${item.category || '-'}</span></td>
+      <td>${item.price ? item.price.toLocaleString() + ' ج.م' : '-'}</td>
+      <td>${statusBadge}</td>
+      ${branchCells}
+      <td style="color:var(--green);font-weight:900;background:var(--green-bg);">${totalSales > 0 ? totalSales.toLocaleString() : '-'}</td>
+      <td>
+        <button class="btn btn-ghost btn-xs" onclick="editMenuItem('${id}')"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-danger btn-xs" onclick="delMenuItem('${id}')"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleMenuItemVisibility(id, newVal) {
+  try {
+    await dbUpdate('menu/' + id, { visibleInReport: newVal });
+    // لا نحتاج renderMenu — الـ listener سيُحدّث تلقائياً
+  } catch(e) { toast('خطأ في التحديث', 'error'); }
+}
+
+async function setAllMenuVisibility(val) {
+  const updates = {};
+  for (const id in S.menu) updates[`menu/${id}/visibleInReport`] = val;
+  try {
+    await window.$update(window.$ref(window.$db, DB_PATH), updates);
+    toast(val ? 'تم تحديد كل الأصناف للعرض ✅' : 'تم إخفاء كل الأصناف من التقرير');
+  } catch(e) { toast('خطأ', 'error'); }
+}
+
+function updateSalesBranchFilter(branches) {
+  const sel = document.getElementById('sales-branch-filter');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="all">🏢 كل الفروع</option>' +
+    branches.map(b => `<option value="${b}" ${b===prev?'selected':''}>${b}</option>`).join('');
+}
+
+function openAddMenuItem() { editingMenuItem = null; document.getElementById('menu-modal-title').textContent = 'صنف جديد'; ['mf-id','mf-name','mf-category','mf-price'].forEach(id => document.getElementById(id).value = ''); document.getElementById('mf-status').value = 'active'; openModal('modal-menu-item'); }
+function editMenuItem(id) { const item = S.menu[id]; if(!item) return; editingMenuItem = id; document.getElementById('menu-modal-title').textContent = 'تعديل صنف'; document.getElementById('mf-id').value = item.itemId || ''; document.getElementById('mf-name').value = item.name || ''; document.getElementById('mf-category').value = item.category || ''; document.getElementById('mf-price').value = item.price || ''; document.getElementById('mf-status').value = item.status || 'active'; openModal('modal-menu-item'); }
+async function saveMenuItem() { const name = document.getElementById('mf-name').value.trim(); const category = document.getElementById('mf-category').value.trim(); const itemId = document.getElementById('mf-id').value; const price = parseFloat(document.getElementById('mf-price').value) || 0; const status = document.getElementById('mf-status').value; if(!name) { toast('يرجى إدخال اسم الصنف', 'error'); return; } const data = { name, category, itemId, price, status, updatedAt: new Date().toISOString() }; try { if(editingMenuItem) await dbUpdate('menu/' + editingMenuItem, data); else { data.createdAt = new Date().toISOString(); await dbSet('menu/' + uid(), data); } closeModal('modal-menu-item'); toast('تم الحفظ'); } catch(e) { toast('خطأ', 'error'); } }
+async function delMenuItem(id) { if(!confirm('حذف الصنف؟')) return; try { await dbRemove('menu/' + id); toast('تم الحذف'); } catch(e) { toast('خطأ', 'error'); } }
+
+// ============================================================
+// FIREBASE LISTENERS
+// ============================================================
+window.addEventListener('fbReady', () => {
+  const connStatus = document.getElementById('conn-status');
+  if(connStatus) { connStatus.textContent = 'متصل'; connStatus.classList.remove('offline'); }
+  listen('users', v => { S.users = v; renderUsers(); document.getElementById('loading').classList.add('out'); if(!CURRENT_USER) { if(checkSession()) { const uid_s = CURRENT_USER.id; const freshUser = S.users[uid_s]; if(freshUser && freshUser.status === 'active') { CURRENT_USER = { ...freshUser, id: uid_s }; showApp(); } else { sessionStorage.removeItem('app-user'); CURRENT_USER = null; document.getElementById('login-screen').style.display = 'flex'; } } else { document.getElementById('login-screen').style.display = 'flex'; } } initDefaultUsers(); });
+  listen('menu', v => { S.menu = v || {}; renderMenu(); renderSalesComparison(); });
+  listen('sales_aggregated', v => { if(v && typeof v === 'object') { S.salesAggregated = v; setDefaultDates(); renderSalesComparison(); toast('تم تحميل البيانات من Firebase ☁️'); } });
+});
+window.addEventListener('fbOffline', () => { const connStatus = document.getElementById('conn-status'); if(connStatus) { connStatus.textContent = 'غير متصل'; connStatus.classList.add('offline'); } document.getElementById('loading').classList.add('out'); document.getElementById('login-screen').style.display = 'flex'; toast('تعذر الاتصال', 'error'); });
+document.addEventListener('keydown', e => { if(e.key === 'Enter' && document.getElementById('login-screen')?.style.display !== 'none') doLogin(); });
+</script>
+</body>
+</html>
