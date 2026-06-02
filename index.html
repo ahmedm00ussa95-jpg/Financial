@@ -845,6 +845,33 @@ async function importAndAggregateSalesFile(input) {
   if (!file) return;
   toast('جاري قراءة الملف...', 'info');
   try {
+    // ✅ جلب أحدث بيانات من Firebase قبل الدمج لضمان عدم فقدان بيانات الفروع الأخرى
+    if (window._fbAvailable) {
+      try {
+        await new Promise((resolve) => {
+          const ref = window.$ref(window.$db, DB_PATH + '/sales_aggregated');
+          window.$onValue(ref, snap => {
+            const val = snap.val();
+            if (val && typeof val === 'object') {
+              // دمج البيانات الموجودة على السحابة مع الذاكرة المحلية
+              for (const date in val) {
+                if (!S.salesAggregated[date]) S.salesAggregated[date] = {};
+                for (const branch in val[date]) {
+                  if (!S.salesAggregated[date][branch]) S.salesAggregated[date][branch] = {};
+                  for (const itemId in val[date][branch]) {
+                    if (!S.salesAggregated[date][branch][itemId]) {
+                      S.salesAggregated[date][branch][itemId] = { ...val[date][branch][itemId] };
+                    }
+                  }
+                }
+              }
+            }
+            resolve();
+          }, { onlyOnce: true });
+        });
+      } catch(fbErr) { console.warn('تعذر تحميل بيانات Firebase قبل الرفع:', fbErr); }
+    }
+
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data, { type:'array' });
     let newRowsCount = 0;
@@ -854,7 +881,7 @@ async function importAndAggregateSalesFile(input) {
       const ws = wb.Sheets[sheetName];
       const json = XLSX.utils.sheet_to_json(ws, { defval:'' });
       json.forEach(row => {
-        const itemName = row['اسم الصنف'] || '';
+        const itemName = (row['اسم الصنف'] || '').toString().trim();
         if (!itemName) return;
         
         let rawDate = row['تاريخ اليومية'];
@@ -907,8 +934,10 @@ async function importAndAggregateSalesFile(input) {
         }
         
         const itemId = String(row['رقم الصنف'] || '').trim();
-        const category = row['فئة الصنف'] || 'أخرى';
-        const branch = row['الفرع'] || sheetName;
+        const category = (row['فئة الصنف'] || 'أخرى').toString().trim();
+        // ✅ تنظيف اسم الفرع من الفراغات الزائدة
+        const rawBranch = row['الفرع'] ? row['الفرع'].toString().trim() : '';
+        const branch = rawBranch || sheetName.trim();
         const qtyTotal = parseFloat(row['كل الكمية'] || 0) || 0;
         const revenue = parseFloat(row['الصافى'] || 0) || 0;
         const price = parseFloat(row['سعر'] || 0) || 0;
@@ -943,13 +972,20 @@ async function importAndAggregateSalesFile(input) {
     
     // حفظ تلقائي على Firebase فور الرفع
     const detectedDates = Object.keys(tempAgg).sort();
+    // ✅ استخراج أسماء الفروع المكتشفة من الملف
+    const detectedBranches = new Set();
+    for (const date in tempAgg) for (const b in tempAgg[date]) detectedBranches.add(b);
     setDefaultDates();
     renderSalesComparison();
     const datesSummary = detectedDates.length > 0
-      ? `📅 التواريخ: ${detectedDates.join(' | ')}`
+      ? `📅 ${detectedDates.join(' | ')}`
       : '⚠️ لم يُكتشف تاريخ';
-    toast(`تم تجميع ${newRowsCount} سجل — ${datesSummary} — جاري الحفظ...`, 'info');
+    const branchSummary = detectedBranches.size > 0
+      ? ` | 🏢 الفروع: ${[...detectedBranches].join('، ')}`
+      : '';
+    toast(`تم تجميع ${newRowsCount} سجل — ${datesSummary}${branchSummary} — جاري الحفظ...`, 'info');
     console.log('🔍 التواريخ المكتشفة:', detectedDates);
+    console.log('🏢 الفروع المكتشفة:', [...detectedBranches]);
     console.log('🔍 البيانات المجمّعة:', JSON.stringify(Object.keys(S.salesAggregated)));
     const ind = document.getElementById('upload-saving-indicator');
     if (ind) ind.style.display = 'inline-flex';
