@@ -22,7 +22,7 @@ window._fbTimeout = setTimeout(() => {
     const { initializeApp }           = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
     const { getDatabase, ref, set, push, update, remove, onValue } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
 
-    const app = initializeApp({ databaseURL: "https://cashier-5c190-default-rtdb.firebaseio.com" });
+    const app = initializeApp({ databaseURL: "https://robert-351a6-default-rtdb.firebaseio.com" });
     const db  = getDatabase(app);
 
     window.$db = db; window.$ref = ref; window.$set = set; window.$push = push;
@@ -833,9 +833,12 @@ function getActiveInputs() {
 function onWeeklyDate1Change() {
   const v1 = document.getElementById('date1-weekly').value;
   if (v1) {
-    const d = new Date(v1);
-    d.setDate(d.getDate() + 7);
-    document.getElementById('date2-weekly').value = d.toISOString().split('T')[0];
+    const [y, m, d] = v1.split('-').map(Number);
+    const date = new Date(y, m - 1, d + 7);
+    const yy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    document.getElementById('date2-weekly').value = `${yy}-${mm}-${dd}`;
   }
   renderSalesComparison();
 }
