@@ -955,17 +955,31 @@ async function importAndAggregateSalesFile(input) {
       });
     });
     
+    // ✅ فحص إذا كان أي تاريخ من الملف الجديد موجود مسبقاً في قاعدة البيانات
+    const existingDates = Object.keys(tempAgg).filter(date => S.salesAggregated[date]);
+    if (existingDates.length > 0) {
+      const datesList = existingDates.join('، ');
+      const confirmed = confirm(
+        `⚠️ تحذير: التواريخ التالية موجودة مسبقاً في قاعدة البيانات:\n\n${datesList}\n\nهل تريد استبدال البيانات القديمة بالجديدة؟\n\n✅ موافق = استبدال (يمنع تكرار الأرقام)\n❌ إلغاء = إلغاء الرفع`
+      );
+      if (!confirmed) {
+        toast('تم إلغاء الرفع — لم تتغير أي بيانات', 'info');
+        input.value = '';
+        return;
+      }
+      // حذف التواريخ المتكررة من قاعدة البيانات قبل الدمج
+      for (const date of existingDates) {
+        delete S.salesAggregated[date];
+      }
+    }
+
+    // دمج البيانات الجديدة (التواريخ المكررة استُبدلت الآن)
     for (const date in tempAgg) {
-      if (!S.salesAggregated[date]) S.salesAggregated[date] = {};
+      S.salesAggregated[date] = {};
       for (const branch in tempAgg[date]) {
-        if (!S.salesAggregated[date][branch]) S.salesAggregated[date][branch] = {};
+        S.salesAggregated[date][branch] = {};
         for (const itemId in tempAgg[date][branch]) {
-          if (!S.salesAggregated[date][branch][itemId]) {
-            S.salesAggregated[date][branch][itemId] = { ...tempAgg[date][branch][itemId] };
-          } else {
-            S.salesAggregated[date][branch][itemId].qty += tempAgg[date][branch][itemId].qty;
-            S.salesAggregated[date][branch][itemId].revenue += tempAgg[date][branch][itemId].revenue;
-          }
+          S.salesAggregated[date][branch][itemId] = { ...tempAgg[date][branch][itemId] };
         }
       }
     }
