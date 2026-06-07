@@ -320,6 +320,39 @@ tbody tr:last-child { border-bottom:none; }
 ::-webkit-scrollbar       { width:5px; height:5px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+/* ===== GROUP STYLES ===== */
+.group-card {
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:14px 16px; margin-bottom:10px; transition:border-color .2s;
+}
+.group-card:hover { border-color:rgba(163,113,247,.35); }
+.group-header {
+  display:flex; align-items:center; gap:10px; margin-bottom:10px;
+}
+.group-color-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+.group-name { font-size:13px; font-weight:700; flex:1; }
+.group-items-wrap { display:flex; flex-wrap:wrap; gap:6px; }
+.group-item-tag {
+  display:inline-flex; align-items:center; gap:5px;
+  background:var(--purple-bg); color:var(--purple);
+  border:1px solid rgba(163,113,247,.3); border-radius:20px;
+  padding:3px 10px; font-size:11px; font-weight:600;
+}
+.group-item-tag .remove-tag {
+  cursor:pointer; opacity:.6; font-size:12px; line-height:1;
+  padding:0 2px; transition:opacity .15s;
+}
+.group-item-tag .remove-tag:hover { opacity:1; color:var(--red); }
+.group-row { background:var(--purple-bg) !important; }
+.group-row td:first-child { border-right:3px solid var(--purple); }
+.cat-group-row { background:var(--accent-bg) !important; }
+.cat-group-row td:first-child { border-right:3px solid var(--accent); }
+.toggle-view-btn { padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; border:1px solid var(--border); background:var(--card2); color:var(--text2); cursor:pointer; transition:all .2s; }
+.toggle-view-btn.active { background:var(--purple-bg); color:var(--purple); border-color:var(--purple); }
+.color-picker-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.color-dot-pick { width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:border-color .15s; }
+.color-dot-pick.selected { border-color:var(--text); }
 </style>
 </head>
 <body>
@@ -379,6 +412,9 @@ tbody tr:last-child { border-bottom:none; }
         </div>
         <div class="sb-item" data-page="menu" onclick="nav('menu')">
           <i class="fas fa-utensils"></i> المنيو
+        </div>
+        <div class="sb-item" data-page="groups" onclick="nav('groups')">
+          <i class="fas fa-layer-group"></i> المجموعات اليدوية
         </div>
       </div>
 
@@ -537,7 +573,10 @@ tbody tr:last-child { border-bottom:none; }
       <div class="card">
         <div class="sec-head">
           <div class="sec-title"><div class="sec-dot"></div><span id="report-title">تقرير مقارنة المبيعات</span></div>
-          <span id="sales-count" style="font-size:12px;color:var(--text2);"></span>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div id="sales-view-toggle"></div>
+            <span id="sales-count" style="font-size:12px;color:var(--text2);"></span>
+          </div>
         </div>
         <div class="tbl-wrap" id="sales-tbl-wrap">
           <table id="sales-table">
@@ -613,6 +652,26 @@ tbody tr:last-child { border-bottom:none; }
       </div>
     </div>
 
+    <!-- صفحة المجموعات اليدوية -->
+    <div class="page page-content" id="pg-groups">
+
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="openAddGroup()">
+            <i class="fas fa-plus"></i> مجموعة جديدة
+          </button>
+          <span style="font-size:12px;color:var(--text2);">
+            <i class="fas fa-info-circle"></i>
+            اجمع أصناف متشابهة في مجموعة واحدة لعرضها مجمعة في التقرير
+          </span>
+        </div>
+      </div>
+
+      <div id="groups-list-wrap">
+        <div style="text-align:center;padding:40px;color:var(--text2);">لا توجد مجموعات بعد — أضف مجموعة جديدة</div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -668,13 +727,58 @@ tbody tr:last-child { border-bottom:none; }
   </div>
 </div>
 
+<div class="overlay" id="modal-group">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-head">
+      <h3><i class="fas fa-layer-group"></i> <span id="group-modal-title">مجموعة جديدة</span></h3>
+      <button class="close-btn" onclick="closeModal('modal-group')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row form-row-2 mb-3">
+        <div class="fg"><label>اسم المجموعة *</label><input class="fc" id="gf-name" placeholder="مثال: وجبات الفراخ"></div>
+        <div class="fg">
+          <label>اللون</label>
+          <div class="color-picker-row" id="gf-colors">
+            <div class="color-dot-pick selected" data-color="#a371f7" style="background:#a371f7;" onclick="selectGroupColor('#a371f7',this)"></div>
+            <div class="color-dot-pick" data-color="#00d4ff" style="background:#00d4ff;" onclick="selectGroupColor('#00d4ff',this)"></div>
+            <div class="color-dot-pick" data-color="#3fb950" style="background:#3fb950;" onclick="selectGroupColor('#3fb950',this)"></div>
+            <div class="color-dot-pick" data-color="#d29922" style="background:#d29922;" onclick="selectGroupColor('#d29922',this)"></div>
+            <div class="color-dot-pick" data-color="#f85149" style="background:#f85149;" onclick="selectGroupColor('#f85149',this)"></div>
+            <div class="color-dot-pick" data-color="#58a6ff" style="background:#58a6ff;" onclick="selectGroupColor('#58a6ff',this)"></div>
+            <div class="color-dot-pick" data-color="#ff7b72" style="background:#ff7b72;" onclick="selectGroupColor('#ff7b72',this)"></div>
+            <div class="color-dot-pick" data-color="#79c0ff" style="background:#79c0ff;" onclick="selectGroupColor('#79c0ff',this)"></div>
+          </div>
+        </div>
+      </div>
+      <div class="fg mb-3">
+        <label>أضف أصناف للمجموعة</label>
+        <div style="display:flex;gap:8px;">
+          <input class="fc" id="gf-item-search" placeholder="ابحث عن صنف أو اكتب اسمه..." oninput="filterGroupItemSuggestions()" autocomplete="off" style="flex:1;">
+          <button class="btn btn-ghost btn-sm" onclick="addItemToGroupFromInput()"><i class="fas fa-plus"></i> أضف</button>
+        </div>
+        <div id="gf-suggestions" style="background:var(--card2);border:1px solid var(--border);border-radius:8px;margin-top:4px;max-height:160px;overflow-y:auto;display:none;"></div>
+      </div>
+      <div class="fg">
+        <label>الأصناف في هذه المجموعة</label>
+        <div id="gf-items-tags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:40px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px;">
+          <span style="color:var(--text3);font-size:12px;" id="gf-empty-hint">لم تُضف أي أصناف بعد</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-group')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveGroup()">حفظ المجموعة</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
 // ============================================================
 // STATE
 // ============================================================
-const S = { users: {}, menu: {}, salesAggregated: {} };
+const S = { users: {}, menu: {}, salesAggregated: {}, groups: {} };
 let CURRENT_USER = null;
 let editingUser = null;
 let editingMenuItem = null;
@@ -719,7 +823,7 @@ function fDate(iso) { if(!iso) return '-'; try { return new Date(iso).toLocaleSt
 // ============================================================
 // NAVIGATION
 // ============================================================
-const PAGE_CONFIG = { home: { title:'الرئيسية', icon:'fas fa-home' }, users: { title:'المستخدمين', icon:'fas fa-users-cog' }, sales: { title:'مقارنة المبيعات', icon:'fas fa-chart-bar' }, menu: { title:'المنيو', icon:'fas fa-utensils' } };
+const PAGE_CONFIG = { home: { title:'الرئيسية', icon:'fas fa-home' }, users: { title:'المستخدمين', icon:'fas fa-users-cog' }, sales: { title:'مقارنة المبيعات', icon:'fas fa-chart-bar' }, menu: { title:'المنيو', icon:'fas fa-utensils' }, groups: { title:'المجموعات اليدوية', icon:'fas fa-layer-group' } };
 function nav(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
@@ -730,6 +834,7 @@ function nav(page) {
   document.getElementById('pg-icon').className = cfg.icon || '';
   if (page === 'sales') { onCompareTypeChange(); renderSalesComparison(); }
   if (page === 'menu') renderMenu();
+  if (page === 'groups') renderGroupsList();
 }
 
 // ============================================================
@@ -1287,29 +1392,43 @@ function renderSalesComparison() {
   const hiddenNote = hiddenCount > 0
     ? ` <span style="font-size:11px;color:var(--text3);font-weight:400;">(${hiddenCount} مخفي من المنيو)</span>`
     : '';
-  document.getElementById('sales-count').innerHTML = items.length
-    ? `${items.length} صنف${hiddenNote}` : '';
+
+  // أزرار تبديل العرض
+  const viewToggleEl = document.getElementById('sales-view-toggle');
+  if (viewToggleEl) viewToggleEl.innerHTML = getSalesViewToggleHTML();
 
   if (!items.length) {
+    document.getElementById('sales-count').innerHTML = '';
     tbody.innerHTML = `<tr><td colspan="${3 + branches.length * 3}" style="text-align:center;padding:40px;color:var(--text2);">لا توجد بيانات للفترة المحددة</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = items.map((item, idx) => {
-    let cells = `<td style="color:var(--text3);font-size:12px;">${idx + 1}</td>
-                 <td><strong>${item.name}</strong></td>
-                 <td><span class="badge badge-info" style="font-size:10px;">${item.category || '-'}</span></td>`;
-    for (const b of branches) {
-      const bd = item.branches[b] || { qty1: 0, qty2: 0 };
-      const d = bd.qty2 - bd.qty1;
-      const dClass = d > 0 ? 'text-green' : d < 0 ? 'text-red' : '';
-      cells += `
-        <td style="text-align:center;color:var(--accent);">${bd.qty1 > 0 ? bd.qty1.toLocaleString('ar-EG') : '<span style="color:var(--text3)">-</span>'}</td>
-        <td style="text-align:center;color:var(--green);font-weight:700;">${bd.qty2 > 0 ? bd.qty2.toLocaleString('ar-EG') : '<span style="color:var(--text3)">-</span>'}</td>
-        <td class="${dClass}" style="text-align:center;font-weight:700;border-left:2px solid var(--border);">${(bd.qty1 > 0 || bd.qty2 > 0) ? (d > 0 ? '+' : '') + d.toLocaleString('ar-EG') : '-'}</td>`;
-    }
-    return `<tr>${cells}</tr>`;
-  }).join('');
+  if (salesViewMode === 'category') {
+    document.getElementById('sales-count').innerHTML = '';
+    renderSalesByCategory(items, branches, lbl1, lbl2, type, v1, v2);
+  } else if (salesViewMode === 'group') {
+    document.getElementById('sales-count').innerHTML = '';
+    renderSalesByManualGroups(items, branches, lbl1, lbl2);
+  } else {
+    // عرض تفصيلي (الافتراضي)
+    document.getElementById('sales-count').innerHTML = items.length
+      ? `${items.length} صنف${hiddenNote}` : '';
+    tbody.innerHTML = items.map((item, idx) => {
+      let cells = `<td style="color:var(--text3);font-size:12px;">${idx + 1}</td>
+                   <td><strong>${item.name}</strong></td>
+                   <td><span class="badge badge-info" style="font-size:10px;">${item.category || '-'}</span></td>`;
+      for (const b of branches) {
+        const bd = item.branches[b] || { qty1: 0, qty2: 0 };
+        const d = bd.qty2 - bd.qty1;
+        const dClass = d > 0 ? 'text-green' : d < 0 ? 'text-red' : '';
+        cells += `
+          <td style="text-align:center;color:var(--accent);">${bd.qty1 > 0 ? bd.qty1.toLocaleString('ar-EG') : '<span style="color:var(--text3)">-</span>'}</td>
+          <td style="text-align:center;color:var(--green);font-weight:700;">${bd.qty2 > 0 ? bd.qty2.toLocaleString('ar-EG') : '<span style="color:var(--text3)">-</span>'}</td>
+          <td class="${dClass}" style="text-align:center;font-weight:700;border-left:2px solid var(--border);">${(bd.qty1 > 0 || bd.qty2 > 0) ? (d > 0 ? '+' : '') + d.toLocaleString('ar-EG') : '-'}</td>`;
+      }
+      return `<tr>${cells}</tr>`;
+    }).join('');
+  }
 }
 
 // ============================================================
@@ -1494,13 +1613,336 @@ async function saveMenuItem() { const name = document.getElementById('mf-name').
 async function delMenuItem(id) { if(!confirm('حذف الصنف؟')) return; try { await dbRemove('menu/' + id); toast('تم الحذف'); } catch(e) { toast('خطأ', 'error'); } }
 
 // ============================================================
-// FIREBASE LISTENERS
+// VIEW MODE: DETAILED / CATEGORY / MANUAL GROUPS
+// ============================================================
+let salesViewMode = 'detail'; // 'detail' | 'category' | 'group'
+
+function getSalesViewToggleHTML() {
+  return `
+    <div style="display:flex;gap:6px;align-items:center;">
+      <span style="font-size:11px;color:var(--text2);">عرض:</span>
+      <button class="toggle-view-btn ${salesViewMode==='detail'?'active':''}" onclick="setSalesView('detail')">
+        <i class="fas fa-list"></i> تفصيلي
+      </button>
+      <button class="toggle-view-btn ${salesViewMode==='category'?'active':''}" onclick="setSalesView('category')">
+        <i class="fas fa-tags"></i> بالفئة
+      </button>
+      <button class="toggle-view-btn ${salesViewMode==='group'?'active':''}" onclick="setSalesView('group')">
+        <i class="fas fa-layer-group"></i> مجموعات يدوية
+      </button>
+    </div>`;
+}
+
+function setSalesView(mode) {
+  salesViewMode = mode;
+  renderSalesComparison();
+}
+
+// ============================================================
+// MANUAL GROUPS - STATE & FIREBASE
+// ============================================================
+// S.groups loaded from Firebase like other data
+
+function listen_groups() {
+  listen('groups', v => { S.groups = v || {}; renderGroupsList(); });
+}
+
+// ============================================================
+// MANUAL GROUPS - MODAL LOGIC
+// ============================================================
+let editingGroup = null;
+let groupSelectedColor = '#a371f7';
+let groupCurrentItems = []; // array of item names
+
+function openAddGroup() {
+  editingGroup = null;
+  groupCurrentItems = [];
+  groupSelectedColor = '#a371f7';
+  document.getElementById('group-modal-title').textContent = 'مجموعة جديدة';
+  document.getElementById('gf-name').value = '';
+  document.getElementById('gf-item-search').value = '';
+  document.getElementById('gf-suggestions').style.display = 'none';
+  // reset color selection
+  document.querySelectorAll('.color-dot-pick').forEach(d => d.classList.remove('selected'));
+  document.querySelector('.color-dot-pick[data-color="#a371f7"]')?.classList.add('selected');
+  renderGroupItemTags();
+  openModal('modal-group');
+}
+
+function editGroup(id) {
+  const g = S.groups[id];
+  if (!g) return;
+  editingGroup = id;
+  groupCurrentItems = [...(g.items || [])];
+  groupSelectedColor = g.color || '#a371f7';
+  document.getElementById('group-modal-title').textContent = 'تعديل مجموعة';
+  document.getElementById('gf-name').value = g.name || '';
+  document.getElementById('gf-item-search').value = '';
+  document.getElementById('gf-suggestions').style.display = 'none';
+  document.querySelectorAll('.color-dot-pick').forEach(d => {
+    d.classList.toggle('selected', d.dataset.color === groupSelectedColor);
+  });
+  renderGroupItemTags();
+  openModal('modal-group');
+}
+
+function selectGroupColor(color, el) {
+  groupSelectedColor = color;
+  document.querySelectorAll('.color-dot-pick').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function filterGroupItemSuggestions() {
+  const q = document.getElementById('gf-item-search').value.trim().toLowerCase();
+  const box = document.getElementById('gf-suggestions');
+  if (!q) { box.style.display = 'none'; return; }
+
+  // جمع كل الأصناف المعروفة من المنيو والمبيعات
+  const names = new Set();
+  for (const id in S.menu) { if (S.menu[id].name) names.add(S.menu[id].name); }
+  for (const date in S.salesAggregated) {
+    for (const branch in S.salesAggregated[date]) {
+      for (const itemId in S.salesAggregated[date][branch]) {
+        const n = S.salesAggregated[date][branch][itemId].name;
+        if (n) names.add(n);
+      }
+    }
+  }
+
+  const filtered = [...names].filter(n => n.toLowerCase().includes(q) && !groupCurrentItems.includes(n));
+  if (!filtered.length) { box.style.display = 'none'; return; }
+
+  box.style.display = 'block';
+  box.innerHTML = filtered.slice(0, 20).map(n =>
+    `<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2);"
+       onmousedown="addItemToGroup('${n.replace(/'/g,"\\'")}'); document.getElementById('gf-item-search').value=''; document.getElementById('gf-suggestions').style.display='none';"
+       onmouseover="this.style.background='var(--accent-bg)'" onmouseout="this.style.background=''">
+      ${n}
+    </div>`
+  ).join('');
+}
+
+function addItemToGroupFromInput() {
+  const val = document.getElementById('gf-item-search').value.trim();
+  if (!val) return;
+  addItemToGroup(val);
+  document.getElementById('gf-item-search').value = '';
+  document.getElementById('gf-suggestions').style.display = 'none';
+}
+
+function addItemToGroup(name) {
+  if (!name || groupCurrentItems.includes(name)) return;
+  groupCurrentItems.push(name);
+  renderGroupItemTags();
+}
+
+function removeItemFromGroup(name) {
+  groupCurrentItems = groupCurrentItems.filter(n => n !== name);
+  renderGroupItemTags();
+}
+
+function renderGroupItemTags() {
+  const wrap = document.getElementById('gf-items-tags');
+  const hint = document.getElementById('gf-empty-hint');
+  if (!groupCurrentItems.length) {
+    wrap.innerHTML = '<span style="color:var(--text3);font-size:12px;" id="gf-empty-hint">لم تُضف أي أصناف بعد</span>';
+    return;
+  }
+  wrap.innerHTML = groupCurrentItems.map(name =>
+    `<span class="group-item-tag">
+      ${name}
+      <span class="remove-tag" onmousedown="removeItemFromGroup('${name.replace(/'/g,"\\'")}')">×</span>
+    </span>`
+  ).join('');
+}
+
+async function saveGroup() {
+  const name = document.getElementById('gf-name').value.trim();
+  if (!name) { toast('يرجى إدخال اسم المجموعة', 'error'); return; }
+  if (!groupCurrentItems.length) { toast('يرجى إضافة صنف واحد على الأقل', 'error'); return; }
+  const data = { name, color: groupSelectedColor, items: groupCurrentItems, updatedAt: new Date().toISOString() };
+  try {
+    if (editingGroup) await dbUpdate('groups/' + editingGroup, data);
+    else { data.createdAt = new Date().toISOString(); await dbSet('groups/' + uid(), data); }
+    closeModal('modal-group');
+    toast('تم حفظ المجموعة ✅');
+  } catch(e) { toast('خطأ: ' + e.message, 'error'); }
+}
+
+async function deleteGroup(id) {
+  if (!confirm('حذف المجموعة؟')) return;
+  try { await dbRemove('groups/' + id); toast('تم الحذف'); } catch(e) { toast('خطأ', 'error'); }
+}
+
+// ============================================================
+// MANUAL GROUPS - RENDER LIST PAGE
+// ============================================================
+function renderGroupsList() {
+  const wrap = document.getElementById('groups-list-wrap');
+  if (!wrap) return;
+  const groups = S.groups || {};
+  const entries = Object.entries(groups);
+  if (!entries.length) {
+    wrap.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text2);">لا توجد مجموعات بعد — أضف مجموعة جديدة</div>`;
+    return;
+  }
+  wrap.innerHTML = entries.map(([id, g]) => `
+    <div class="group-card">
+      <div class="group-header">
+        <div class="group-color-dot" style="background:${g.color||'#a371f7'};"></div>
+        <div class="group-name">${g.name}</div>
+        <span style="font-size:11px;color:var(--text3);">${(g.items||[]).length} صنف</span>
+        <button class="btn btn-ghost btn-xs" onclick="editGroup('${id}')"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-danger btn-xs" onclick="deleteGroup('${id}')"><i class="fas fa-trash"></i></button>
+      </div>
+      <div class="group-items-wrap">
+        ${(g.items||[]).map(item => `<span class="group-item-tag" style="border-color:${g.color||'#a371f7'}33;color:${g.color||'#a371f7'};background:${g.color||'#a371f7'}11;">${item}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// SALES COMPARISON - CATEGORY VIEW
+// ============================================================
+function renderSalesByCategory(items, branches, lbl1, lbl2, type, v1, v2) {
+  // تجميع الأصناف حسب الفئة
+  const catMap = {};
+  for (const item of items) {
+    const cat = item.category || 'بدون فئة';
+    if (!catMap[cat]) catMap[cat] = { name: cat, branches: {} };
+    for (const b of branches) {
+      if (!catMap[cat].branches[b]) catMap[cat].branches[b] = { qty1: 0, qty2: 0 };
+      const bd = item.branches[b] || { qty1: 0, qty2: 0 };
+      catMap[cat].branches[b].qty1 += bd.qty1;
+      catMap[cat].branches[b].qty2 += bd.qty2;
+    }
+  }
+  const cats = Object.values(catMap).sort((a,b) => {
+    const ta = branches.reduce((s,br) => s + (a.branches[br]?.qty2||0),0);
+    const tb = branches.reduce((s,br) => s + (b.branches[br]?.qty2||0),0);
+    return tb - ta;
+  });
+
+  const headerRow    = document.getElementById('sales-header-row');
+  const subHeaderRow = document.getElementById('sales-subheader-row');
+  let headerHTML = `<th rowspan="2">#</th><th rowspan="2">الفئة</th>`;
+  let subHeaderHTML = '';
+  for (const b of branches) {
+    headerHTML += `<th colspan="3" style="background:var(--purple-bg);color:var(--purple);text-align:center;border-right:2px solid var(--purple);min-width:210px;">${b}</th>`;
+    subHeaderHTML += `
+      <th style="background:var(--accent-bg);color:var(--accent);min-width:70px;text-align:center;">${lbl1}</th>
+      <th style="background:var(--green-bg);color:var(--green);min-width:70px;text-align:center;">${lbl2}</th>
+      <th style="background:var(--yellow-bg);color:var(--yellow);min-width:70px;text-align:center;border-left:2px solid var(--border);">الفرق</th>`;
+  }
+  headerRow.innerHTML = headerHTML;
+  subHeaderRow.innerHTML = subHeaderHTML;
+
+  const tbody = document.getElementById('sales-tbody');
+  if (!cats.length) { tbody.innerHTML = `<tr><td colspan="${2+branches.length*3}" style="text-align:center;padding:40px;">لا توجد بيانات</td></tr>`; return; }
+
+  tbody.innerHTML = cats.map((cat, idx) => {
+    let cells = `<td style="color:var(--text3);font-size:12px;">${idx+1}</td>
+                 <td><strong style="color:var(--accent);">${cat.name}</strong></td>`;
+    for (const b of branches) {
+      const bd = cat.branches[b] || { qty1:0, qty2:0 };
+      const d = bd.qty2 - bd.qty1;
+      const dClass = d > 0 ? 'text-green' : d < 0 ? 'text-red' : '';
+      cells += `
+        <td style="text-align:center;color:var(--accent);">${bd.qty1>0?bd.qty1.toLocaleString('ar-EG'):'<span style="color:var(--text3)">-</span>'}</td>
+        <td style="text-align:center;color:var(--green);font-weight:700;">${bd.qty2>0?bd.qty2.toLocaleString('ar-EG'):'<span style="color:var(--text3)">-</span>'}</td>
+        <td class="${dClass}" style="text-align:center;font-weight:700;border-left:2px solid var(--border);">${(bd.qty1>0||bd.qty2>0)?((d>0?'+':'')+d.toLocaleString('ar-EG')):'-'}</td>`;
+    }
+    return `<tr class="cat-group-row">${cells}</tr>`;
+  }).join('');
+}
+
+// ============================================================
+// SALES COMPARISON - MANUAL GROUPS VIEW
+// ============================================================
+function renderSalesByManualGroups(items, branches, lbl1, lbl2) {
+  const groups = S.groups || {};
+  const groupEntries = Object.values(groups);
+
+  if (!groupEntries.length) {
+    const tbody = document.getElementById('sales-tbody');
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">
+      لا توجد مجموعات يدوية — <a href="#" onclick="nav('groups')" style="color:var(--accent);">أضف مجموعة الآن</a>
+    </td></tr>`;
+    return;
+  }
+
+  // بناء index سريع لاسم الصنف → بياناته
+  const itemByName = {};
+  for (const item of items) {
+    itemByName[item.name] = item;
+  }
+
+  // حساب بيانات كل مجموعة
+  const groupData = groupEntries.map(g => {
+    const branchTotals = {};
+    for (const b of branches) branchTotals[b] = { qty1: 0, qty2: 0 };
+    let hasData = false;
+    for (const itemName of (g.items || [])) {
+      const item = itemByName[itemName];
+      if (!item) continue;
+      for (const b of branches) {
+        const bd = item.branches[b] || { qty1: 0, qty2: 0 };
+        branchTotals[b].qty1 += bd.qty1;
+        branchTotals[b].qty2 += bd.qty2;
+        if (bd.qty1 > 0 || bd.qty2 > 0) hasData = true;
+      }
+    }
+    return { ...g, branchTotals, hasData };
+  }).filter(g => g.hasData);
+
+  const headerRow    = document.getElementById('sales-header-row');
+  const subHeaderRow = document.getElementById('sales-subheader-row');
+  let headerHTML = `<th rowspan="2">#</th><th rowspan="2">المجموعة</th>`;
+  let subHeaderHTML = '';
+  for (const b of branches) {
+    headerHTML += `<th colspan="3" style="background:var(--purple-bg);color:var(--purple);text-align:center;border-right:2px solid var(--purple);min-width:210px;">${b}</th>`;
+    subHeaderHTML += `
+      <th style="background:var(--accent-bg);color:var(--accent);min-width:70px;text-align:center;">${lbl1}</th>
+      <th style="background:var(--green-bg);color:var(--green);min-width:70px;text-align:center;">${lbl2}</th>
+      <th style="background:var(--yellow-bg);color:var(--yellow);min-width:70px;text-align:center;border-left:2px solid var(--border);">الفرق</th>`;
+  }
+  headerRow.innerHTML = headerHTML;
+  subHeaderRow.innerHTML = subHeaderHTML;
+
+  const tbody = document.getElementById('sales-tbody');
+  if (!groupData.length) {
+    tbody.innerHTML = `<tr><td colspan="${2+branches.length*3}" style="text-align:center;padding:40px;">لا توجد بيانات تطابق المجموعات في هذه الفترة</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = groupData.map((g, idx) => {
+    let cells = `<td style="color:var(--text3);font-size:12px;">${idx+1}</td>
+                 <td><strong style="color:${g.color||'#a371f7'};">
+                   <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${g.color||'#a371f7'};margin-left:6px;"></span>
+                   ${g.name}
+                 </strong></td>`;
+    for (const b of branches) {
+      const bd = g.branchTotals[b] || { qty1:0, qty2:0 };
+      const d = bd.qty2 - bd.qty1;
+      const dClass = d > 0 ? 'text-green' : d < 0 ? 'text-red' : '';
+      cells += `
+        <td style="text-align:center;color:var(--accent);">${bd.qty1>0?bd.qty1.toLocaleString('ar-EG'):'<span style="color:var(--text3)">-</span>'}</td>
+        <td style="text-align:center;color:var(--green);font-weight:700;">${bd.qty2>0?bd.qty2.toLocaleString('ar-EG'):'<span style="color:var(--text3)">-</span>'}</td>
+        <td class="${dClass}" style="text-align:center;font-weight:700;border-left:2px solid var(--border);">${(bd.qty1>0||bd.qty2>0)?((d>0?'+':'')+d.toLocaleString('ar-EG')):'-'}</td>`;
+    }
+    return `<tr class="group-row">${cells}</tr>`;
+  }).join('');
+}
+
+// ============================================================
 // ============================================================
 window.addEventListener('fbReady', () => {
   const connStatus = document.getElementById('conn-status');
   if(connStatus) { connStatus.textContent = 'متصل'; connStatus.classList.remove('offline'); }
   listen('users', v => { S.users = v; renderUsers(); document.getElementById('loading').classList.add('out'); if(!CURRENT_USER) { if(checkSession()) { const uid_s = CURRENT_USER.id; const freshUser = S.users[uid_s]; if(freshUser && freshUser.status === 'active') { CURRENT_USER = { ...freshUser, id: uid_s }; showApp(); } else { sessionStorage.removeItem('app-user'); CURRENT_USER = null; document.getElementById('login-screen').style.display = 'flex'; } } else { document.getElementById('login-screen').style.display = 'flex'; } } initDefaultUsers(); });
   listen('menu', v => { S.menu = v || {}; renderMenu(); renderSalesComparison(); });
+  listen('groups', v => { S.groups = v || {}; renderGroupsList(); });
   listen('sales_aggregated', v => { if(v && typeof v === 'object') { S.salesAggregated = v; setDefaultDates(); renderSalesComparison(); toast('تم تحميل البيانات من Firebase ☁️'); } });
 });
 window.addEventListener('fbOffline', () => { const connStatus = document.getElementById('conn-status'); if(connStatus) { connStatus.textContent = 'غير متصل'; connStatus.classList.add('offline'); } document.getElementById('loading').classList.add('out'); document.getElementById('login-screen').style.display = 'flex'; toast('تعذر الاتصال', 'error'); });
