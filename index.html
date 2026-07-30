@@ -366,28 +366,6 @@ tbody tr:last-child { border-bottom:none; }
 
 <div class="toast" id="toast"></div>
 
-<div class="login-screen" id="login-screen" style="display:none;">
-  <div class="login-box">
-    <div class="login-logo">🚀</div>
-    <div class="login-title">نظام الإدارة</div>
-    <div class="login-sub">تسجيل الدخول للمتابعة</div>
-    <div class="login-err" id="login-err"></div>
-    <div class="fg mb-3">
-      <label>اسم المستخدم</label>
-      <input class="fc" id="login-user" placeholder="username" autocomplete="username"
-             onkeydown="if(event.key==='Enter') document.getElementById('login-pass').focus()">
-    </div>
-    <div class="fg mb-3">
-      <label>كلمة المرور</label>
-      <input class="fc" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
-             onkeydown="if(event.key==='Enter') doLogin()">
-    </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;margin-top:6px;" onclick="doLogin()">
-      <i class="fas fa-sign-in-alt"></i> دخول
-    </button>
-  </div>
-</div>
-
 <div class="layout" style="display:none;">
 
   <nav class="sidebar">
@@ -442,9 +420,6 @@ tbody tr:last-child { border-bottom:none; }
       <div class="topbar-actions">
         <span class="clock" id="clock"></span>
         <div class="topbar-user" id="topbar-user-info" style="display:none;"></div>
-        <button class="btn btn-ghost btn-sm" onclick="doLogout()">
-          <i class="fas fa-sign-out-alt"></i>
-        </button>
       </div>
     </div>
 
@@ -779,7 +754,7 @@ tbody tr:last-child { border-bottom:none; }
 // STATE
 // ============================================================
 const S = { users: {}, menu: {}, salesAggregated: {}, groups: {} };
-let CURRENT_USER = null;
+let CURRENT_USER = { id: 'default-admin', username: 'admin', name: 'المستخدم', role: 'admin', status: 'active' };
 let editingUser = null;
 let editingMenuItem = null;
 const DB_PATH = 'rohdemshek';
@@ -838,33 +813,9 @@ function nav(page) {
 }
 
 // ============================================================
-// LOGIN / LOGOUT
+// APP START (بدون تسجيل دخول - دخول تلقائي)
 // ============================================================
-function doLogin() {
-  const username = document.getElementById('login-user').value.trim().toLowerCase();
-  const pass = document.getElementById('login-pass').value;
-  const errEl = document.getElementById('login-err');
-  errEl.style.display = 'none';
-  if (!username || !pass) { errEl.textContent = 'يرجى إدخال البيانات'; errEl.style.display = 'block'; return; }
-  const users = S.users || {};
-  const found = Object.entries(users).find(([, u]) => u.username === username && u.status === 'active');
-  if (!found) { errEl.textContent = 'اسم المستخدم غير موجود'; errEl.style.display = 'block'; return; }
-  const [uid_u, user] = found;
-  if (user.password !== btoa(pass)) { errEl.textContent = 'كلمة المرور غير صحيحة'; errEl.style.display = 'block'; return; }
-  CURRENT_USER = { ...user, id: uid_u };
-  dbUpdate('users/' + uid_u, { lastLogin: new Date().toISOString() });
-  sessionStorage.setItem('app-user', JSON.stringify(CURRENT_USER));
-  showApp();
-}
-function doLogout() {
-  if (!confirm('تسجيل الخروج؟')) return;
-  CURRENT_USER = null;
-  sessionStorage.removeItem('app-user');
-  document.getElementById('login-screen').style.display = 'flex';
-  document.querySelector('.layout').style.display = 'none';
-}
 function showApp() {
-  document.getElementById('login-screen').style.display = 'none';
   document.querySelector('.layout').style.display = 'flex';
   const info = document.getElementById('topbar-user-info');
   if (info && CURRENT_USER) {
@@ -873,9 +824,7 @@ function showApp() {
     info.style.display = 'flex';
     info.innerHTML = `<i class="fas fa-user-circle"></i> <strong>${CURRENT_USER.name}</strong> <span class="user-role-badge ${roleClass[CURRENT_USER.role]}">${roleMap[CURRENT_USER.role]}</span>`;
   }
-  if (CURRENT_USER?.role !== 'admin') document.getElementById('admin-section')?.remove();
 }
-function checkSession() { const saved = sessionStorage.getItem('app-user'); if(saved) { try { CURRENT_USER = JSON.parse(saved); return true; } catch(e){} } return false; }
 
 // ============================================================
 // USERS
@@ -1940,13 +1889,12 @@ function renderSalesByManualGroups(items, branches, lbl1, lbl2) {
 window.addEventListener('fbReady', () => {
   const connStatus = document.getElementById('conn-status');
   if(connStatus) { connStatus.textContent = 'متصل'; connStatus.classList.remove('offline'); }
-  listen('users', v => { S.users = v; renderUsers(); document.getElementById('loading').classList.add('out'); if(!CURRENT_USER) { if(checkSession()) { const uid_s = CURRENT_USER.id; const freshUser = S.users[uid_s]; if(freshUser && freshUser.status === 'active') { CURRENT_USER = { ...freshUser, id: uid_s }; showApp(); } else { sessionStorage.removeItem('app-user'); CURRENT_USER = null; document.getElementById('login-screen').style.display = 'flex'; } } else { document.getElementById('login-screen').style.display = 'flex'; } } initDefaultUsers(); });
+  listen('users', v => { S.users = v; renderUsers(); document.getElementById('loading').classList.add('out'); showApp(); initDefaultUsers(); });
   listen('menu', v => { S.menu = v || {}; renderMenu(); renderSalesComparison(); });
   listen('groups', v => { S.groups = v || {}; renderGroupsList(); });
   listen('sales_aggregated', v => { if(v && typeof v === 'object') { S.salesAggregated = v; setDefaultDates(); renderSalesComparison(); toast('تم تحميل البيانات من Firebase ☁️'); } });
 });
-window.addEventListener('fbOffline', () => { const connStatus = document.getElementById('conn-status'); if(connStatus) { connStatus.textContent = 'غير متصل'; connStatus.classList.add('offline'); } document.getElementById('loading').classList.add('out'); document.getElementById('login-screen').style.display = 'flex'; toast('تعذر الاتصال', 'error'); });
-document.addEventListener('keydown', e => { if(e.key === 'Enter' && document.getElementById('login-screen')?.style.display !== 'none') doLogin(); });
+window.addEventListener('fbOffline', () => { const connStatus = document.getElementById('conn-status'); if(connStatus) { connStatus.textContent = 'غير متصل'; connStatus.classList.add('offline'); } document.getElementById('loading').classList.add('out'); showApp(); toast('تعذر الاتصال', 'error'); });
 </script>
 </body>
 </html>
